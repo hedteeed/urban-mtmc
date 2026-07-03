@@ -74,6 +74,43 @@ def main() -> None: ...   # console script `mtmc-server`; uvicorn on :8100
   (all clients see the same world). Client disconnect must not kill the sim.
 - CLI flags: `--port` (8100), `--seed` (42), `--people` (12).
 
+### M1 additions — real camera source
+
+One server, two source modes; the event stream and dashboard contract do not
+change shape (mantis lesson: consumers never branch on source).
+
+- New CLI flag `--source` (default `"sim"`): `sim` | webcam index (`"0"`) |
+  RTSP URL (`rtsp://…`). In camera mode the hub broadcasts observations from
+  `mtmc.camera.CameraWorker` instead of the simulator.
+- `mtmc.detector.PersonDetector` (owner: agent A): ONNX Runtime, COCO-
+  pretrained YOLOX-S at 640, mantis inference conventions exactly — letterbox
+  pad 114 top-left BGR 0-255 no normalization, score = obj × class, person
+  class only, class-aware NMS (IoU 0.7), un-letterbox to source pixels.
+  `detect(frame_bgr) -> list[(x1, y1, x2, y2, conf)]`. Model file lives at
+  `models/yolox_s.onnx` (gitignored); `python -m mtmc.get_model` downloads it
+  from a pinned URL and verifies a pinned sha256. Detector raises a clear
+  error naming that command if the file is missing. All detector tests that
+  need weights skip when the file is absent (mantis oracle-test pattern).
+- `mtmc.camera.CameraWorker` (owner: agent B): cv2.VideoCapture over the
+  source; samples ~5 fps (`--cam-fps`); per frame: detect → emit one
+  `Observation` per detection with `camera="live0"`, `floor_xy=None`,
+  `global_id=None`, `conf` from the detector, and `track_id` = a fresh
+  monotonic id per detection (detector-only milestone: every detection is its
+  own one-frame tracklet — invariant 2 holds, fragmentation is expected and
+  honest; M2 replaces this with ByteTrack). Timestamps: seconds since worker
+  start on a monotonic clock. Keeps `latest_jpeg` (annotated boxes + conf
+  labels, JPEG-encoded) for the preview stream. Runs in a thread; asyncio
+  hub reads its queue. Camera loss → log + reconnect loop, server stays up.
+- New endpoints: `GET /api/source` → `{"mode": "sim"|"camera", "camera_id":
+  "live0"|null}`; `GET /video.mjpg` → multipart/x-mixed-replace MJPEG of
+  `latest_jpeg` (camera mode only; 404 in sim mode).
+- Dashboard (owner: agent C): on load fetch `/api/source`; in camera mode
+  show a CAMERA panel (the MJPEG `<img>`) beside the floor panels, badge
+  switches to "M1 · LIVE CAMERA", and observations with `floor_xy=null`
+  count in sidebar totals (already contract) — no dots expected until M3
+  calibration. Camera id `live0` gets its own sidebar row under a "LIVE"
+  heading.
+
 ### `web/` dashboard (owner: agent C)
 
 Static, no build step, no external network (works offline).
