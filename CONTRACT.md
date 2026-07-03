@@ -104,6 +104,48 @@ change shape (mantis lesson: consumers never branch on source).
 - New endpoints: `GET /api/source` → `{"mode": "sim"|"camera", "camera_id":
   "live0"|null}`; `GET /video.mjpg` → multipart/x-mixed-replace MJPEG of
   `latest_jpeg` (camera mode only; 404 in sim mode).
+
+### M2 additions — real tracking (ByteTrack)
+
+- `mtmc.tracker` (owner: agent A). Self-contained ByteTrack: numpy + scipy
+  (`linear_sum_assignment`) only; no cv2, no onnxruntime, importable alone.
+
+```python
+class ByteTracker:
+    def __init__(self, *, track_thresh: float = 0.5, match_thresh: float = 0.8,
+                 track_buffer_s: float = 2.0, min_hits: int = 3): ...
+    def update(self, detections: list[tuple[float, float, float, float, float]],
+               ts_s: float) -> list[Track]:
+        """detections = (x1, y1, x2, y2, conf) in source pixels, ANY conf ≥
+        ~0.1. Returns CONFIRMED tracks only, each with a stable track_id."""
+
+@dataclass(frozen=True)
+class Track:
+    track_id: int          # monotonic, never reused (invariant 2)
+    box: tuple[float, float, float, float]
+    conf: float            # last matched detection's conf
+```
+
+  Mechanics per update: Kalman predict (state cx, cy, w, h + velocities,
+  constant-velocity, dt from ts_s deltas — sampling may jitter); round 1 =
+  Hungarian on IoU cost between predictions and detections with conf ≥
+  track_thresh, gated at match_thresh; round 2 = remaining unmatched tracks
+  vs detections with conf in [0.1, track_thresh) (the ByteTrack rescue);
+  unmatched detections above track_thresh start TENTATIVE tracks, confirmed
+  after min_hits consecutive matches (never emitted while tentative);
+  unmatched tracks coast (prediction only) up to track_buffer_s seconds,
+  reclaimable meanwhile, then die. Deterministic: no wall clock, no RNG.
+
+- `mtmc.camera` (owner: agent B): CameraWorker grows a `tracker` argument
+  (None = M1 per-detection ids, preserved for tests). With a tracker:
+  detector runs at conf ≥ 0.1, tracker consumes ALL detections, Observations
+  are emitted per CONFIRMED track (track_id from the tracker, conf = track
+  conf). Annotated JPEG labels become "ID {track_id} · {conf:.2f}". Server
+  default in camera mode: tracker ON with contract defaults; flags
+  `--track-thresh`, `--match-thresh`, `--track-buffer` (seconds),
+  `--min-hits`. `--no-track` restores M1 behavior.
+- Dashboard: no changes required by contract (same wire shape); sidebar
+  counts simply become person-scaled.
 - Dashboard (owner: agent C): on load fetch `/api/source`; in camera mode
   show a CAMERA panel (the MJPEG `<img>`) beside the floor panels, badge
   switches to "M1 · LIVE CAMERA", and observations with `floor_xy=null`

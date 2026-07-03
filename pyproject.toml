@@ -9,6 +9,7 @@ dependencies = [
     "numpy>=1.26",
     "opencv-python-headless>=4.10",
     "onnxruntime>=1.18",
+    "scipy>=1.12",
 ]
 
 [dependency-groups]
