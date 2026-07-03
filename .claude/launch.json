@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "mtmc-server",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "--project", "/Users/aaryan/Projects/urban-mtmc", "mtmc-server", "--port", "8100"],
+      "port": 8100
+    }
+  ]
+}

@@ -1,0 +1,126 @@
+/* URBAN-MTMC M0 dashboard — dark ops console per CONTRACT.md §web.
+   No external fonts, no images, no gradients. */
+
+:root {
+  --bg: #060a10;
+  --panel: #0d141d;
+  --line: #1c2836;
+  --text: #d8e2ea;
+  --dim: #66788c;
+  --accent: #00e5ff;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+h1 { font-size: 14px; font-weight: 600; letter-spacing: 3px; }
+
+.badge {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 2px 7px;
+  border-radius: 2px;
+}
+
+.gt {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  cursor: pointer;
+  user-select: none;
+}
+.gt input { accent-color: var(--accent); cursor: pointer; }
+.gt:hover { color: var(--text); }
+
+main { flex: 1; display: flex; min-height: 0; }
+
+#stage { flex: 1; position: relative; min-width: 0; }
+
+#canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+aside {
+  width: 232px;
+  flex: none;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+}
+
+.chip {
+  align-self: flex-start;
+  font-size: 10px;
+  letter-spacing: 2px;
+  padding: 3px 9px;
+  border: 1px solid var(--dim);
+  border-radius: 2px;
+  color: var(--dim);
+}
+.chip.live { color: #7bd88f; border-color: #7bd88f; }
+.chip.down { color: #ffb454; border-color: #ffb454; }
+
+.sec {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 6px;
+}
+
+.stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.stat .k { font-size: 10px; letter-spacing: 1px; color: var(--dim); }
+.stat .v { font-variant-numeric: tabular-nums; }
+
+.cam-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+.cam-row .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.cam-row .count { margin-left: auto; font-variant-numeric: tabular-nums; }

@@ -5,7 +5,7 @@ description = "Urban multi-camera people tracking — M0: floor-plan simulator +
 requires-python = "==3.11.*"
 dependencies = [
     "fastapi>=0.115",
-    "uvicorn>=0.30",
+    "uvicorn[standard]>=0.30",
 ]
 
 [dependency-groups]

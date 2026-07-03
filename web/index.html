@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>URBAN-MTMC · M0</title>
+  <!-- data: favicon so the browser never issues a network request for one -->
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>URBAN-MTMC</h1>
+    <span class="badge">M0 · SIMULATOR</span>
+    <label class="gt" title="Recolor dots by ground-truth global_id and draw true paths">
+      <input type="checkbox" id="gt"> GROUND TRUTH
+    </label>
+  </header>
+  <main>
+    <div id="stage"><canvas id="canvas"></canvas></div>
+    <aside>
+      <div id="chip" class="chip">CONNECTING</div>
+      <section>
+        <div class="stat"><span class="k">SIM CLOCK</span><span class="v" id="clock">00:00</span></div>
+        <div class="stat"><span class="k">OBS/S</span><span class="v" id="rate">0</span></div>
+        <div class="stat"><span class="k">TRACKLETS SEEN</span><span class="v" id="total">0</span></div>
+      </section>
+      <section>
+        <div class="sec">ACTIVE TRACKLETS / CAMERA</div>
+        <div id="cams"></div>
+      </section>
+    </aside>
+  </main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
