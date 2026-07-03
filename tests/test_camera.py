@@ -351,7 +351,9 @@ def test_tracked_jpeg_labels_carry_track_id(monkeypatch: pytest.MonkeyPatch) -> 
         worker.stop()  # joined before monkeypatch undo: no cross-thread race
 
     assert isinstance(jpeg, bytes) and jpeg[:2] == b"\xff\xd8"
-    assert "ID 7 · 0.83" in texts and "ID 9 · 0.44" in texts  # contract label
+    # Drawn text = contract label with the middot swapped for a hyphen
+    # (Hershey fonts render non-ASCII as "?"); label semantics identical.
+    assert "ID 7 - 0.83" in texts and "ID 9 - 0.44" in texts
     assert all(t.startswith("ID ") for t in texts), "no M1 'person' labels in tracked mode"
 
 

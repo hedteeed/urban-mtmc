@@ -301,22 +301,27 @@ class CameraWorker:
         frame: np.ndarray,
         labelled_boxes: list[tuple[tuple[float, float, float, float], str]],
     ) -> bytes | None:
-        # Label text is contract-exact; Hershey fonts draw non-ASCII (the M2
-        # middot) as "?", which is a rendering limit, not a wiring bug.
+        # Labels draw as a filled chip + large dark text (readable on the
+        # dashboard's scaled-down tile). Hershey fonts render non-ASCII (the
+        # contract label's middot) as "?", so the DRAWN text swaps it for a
+        # hyphen; the contract string itself is unchanged elsewhere.
+        font, scale, thick = cv2.FONT_HERSHEY_SIMPLEX, 1.0, 2
         for (x1, y1, x2, y2), label in labelled_boxes:
             p1 = (int(round(x1)), int(round(y1)))
             p2 = (int(round(x2)), int(round(y2)))
-            cv2.rectangle(frame, p1, p2, _BOX_BGR, 2)
-            cv2.putText(
+            cv2.rectangle(frame, p1, p2, _BOX_BGR, 3)
+            text = label.replace(" · ", " - ")
+            (tw, th), baseline = cv2.getTextSize(text, font, scale, thick)
+            # Chip above the box; if the box touches the frame top, inside it.
+            cy = p1[1] - 8 if p1[1] - th - baseline - 8 >= 0 else p1[1] + th + baseline + 8
+            cv2.rectangle(
                 frame,
-                label,
-                (p1[0], max(12, p1[1] - 5)),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.45,
+                (p1[0], cy - th - baseline),
+                (p1[0] + tw + 10, cy + baseline),
                 _BOX_BGR,
-                1,
-                cv2.LINE_AA,
+                -1,
             )
+            cv2.putText(frame, text, (p1[0] + 5, cy), font, scale, (10, 15, 20), thick, cv2.LINE_AA)
         ok, buf = cv2.imencode(".jpg", frame, [int(cv2.IMWRITE_JPEG_QUALITY), self._jpeg_quality])
         return buf.tobytes() if ok else None
 
