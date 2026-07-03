@@ -1,0 +1,576 @@
+<title>Mantis, Decoded — Field Briefing</title>
+<style>
+  :root {
+    --bg: #060a10;
+    --panel: #0d141d;
+    --panel-2: #101926;
+    --line: #1c2836;
+    --ink: #d8e2ea;
+    --muted: #8296a6;
+    --faint: #5a6b7a;
+    --accent: #00e5ff;
+    --carry: #3ddc84;
+    --replace: #ffb21d;
+    --gap: #ff4d4d;
+    --display: "Avenir Next Condensed", "AvenirNextCondensed-DemiBold", "Arial Narrow", "Helvetica Neue", sans-serif;
+    --body: "Charter", "Iowan Old Style", "Palatino", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 17px;
+    line-height: 1.72;
+    margin: 0;
+  }
+  .wrap { max-width: 74ch; margin: 0 auto; padding: 0 24px 96px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- header ---------- */
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 18px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 600; font-size: clamp(40px, 7vw, 62px);
+    line-height: 1.02; margin: 0 0 20px; letter-spacing: .005em; text-wrap: balance;
+    text-transform: uppercase;
+  }
+  h1 .dim { color: var(--faint); }
+  .standfirst { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 62ch; }
+  .standfirst strong { color: var(--ink); font-weight: 600; }
+  .meta-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .06em;
+    border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; color: var(--muted);
+  }
+  .chip b { color: var(--ink); font-weight: 500; }
+
+  /* ---------- toc ---------- */
+  nav.toc { padding: 28px 0 36px; border-bottom: 1px solid var(--line); }
+  nav.toc ol {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px;
+  }
+  nav.toc li { display: flex; gap: 12px; align-items: baseline; }
+  nav.toc .n { font-family: var(--mono); font-size: 11px; color: var(--faint); min-width: 2ch; }
+  nav.toc a { color: var(--ink); font-family: var(--display); font-size: 17px; letter-spacing: .02em; }
+  nav.toc a:hover { color: var(--accent); text-decoration: none; }
+  @media (max-width: 640px) { nav.toc ol { grid-template-columns: 1fr; } }
+
+  /* ---------- sections ---------- */
+  section { padding-top: 64px; }
+  .sec-eyebrow {
+    font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 10px;
+  }
+  .sec-eyebrow em { color: var(--accent); font-style: normal; }
+  h2 {
+    font-family: var(--display); font-weight: 600; font-size: clamp(28px, 4.5vw, 38px);
+    text-transform: uppercase; letter-spacing: .01em; line-height: 1.05;
+    margin: 0 0 22px; text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .02em;
+    margin: 40px 0 12px; color: var(--ink);
+  }
+  p { margin: 0 0 18px; }
+  p, li { max-width: 68ch; }
+  ul, ol { padding-left: 22px; margin: 0 0 18px; }
+  li { margin-bottom: 8px; }
+  strong { color: #fff; font-weight: 600; }
+  code {
+    font-family: var(--mono); font-size: .82em; color: #a8ecf7;
+    background: rgba(0, 229, 255, .06); border: 1px solid rgba(0, 229, 255, .12);
+    border-radius: 3px; padding: 1px 5px; white-space: nowrap;
+  }
+  hr.sec-end { border: none; border-top: 1px solid var(--line); margin: 64px 0 0; }
+
+  /* ---------- callouts ---------- */
+  .lesson {
+    background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent);
+    padding: 18px 22px; margin: 26px 0; border-radius: 0 4px 4px 0;
+  }
+  .lesson .tag, .finding .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    display: block; margin-bottom: 8px;
+  }
+  .lesson .tag { color: var(--accent); }
+  .lesson p:last-child, .finding p:last-child { margin-bottom: 0; }
+  .finding {
+    background: rgba(255, 77, 77, .05); border: 1px solid rgba(255, 77, 77, .25);
+    border-left: 3px solid var(--gap); padding: 18px 22px; margin: 26px 0; border-radius: 0 4px 4px 0;
+  }
+  .finding .tag { color: var(--gap); }
+
+  /* ---------- tables ---------- */
+  .tbl-scroll { overflow-x: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--faint); text-align: left; padding: 10px 14px;
+    background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap;
+  }
+  td {
+    padding: 10px 14px; border-bottom: 1px solid var(--line);
+    vertical-align: top; color: var(--muted);
+  }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink); }
+  td .m { font-family: var(--mono); font-size: 12.5px; color: #a8ecf7; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+
+  /* verdict pills */
+  .pill {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+    border-radius: 3px; padding: 3px 8px; white-space: nowrap; display: inline-block;
+  }
+  .pill.carry   { color: var(--carry);   background: rgba(61, 220, 132, .08); border: 1px solid rgba(61, 220, 132, .3); }
+  .pill.replace { color: var(--replace); background: rgba(255, 178, 29, .08); border: 1px solid rgba(255, 178, 29, .3); }
+  .pill.build   { color: var(--accent);  background: rgba(0, 229, 255, .07);  border: 1px solid rgba(0, 229, 255, .3); }
+  .pill.gap     { color: var(--gap);     background: rgba(255, 77, 77, .08);  border: 1px solid rgba(255, 77, 77, .3); }
+  .pill.ok      { color: var(--carry);   background: rgba(61, 220, 132, .08); border: 1px solid rgba(61, 220, 132, .3); }
+
+  /* ---------- pipeline map ---------- */
+  .pipemap { margin: 34px 0 10px; }
+  .pipemap-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--faint); margin-bottom: 14px;
+  }
+  .lane { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .node {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 4px;
+    padding: 10px 12px; flex: 1 1 130px; min-width: 120px;
+  }
+  .node .nm { font-family: var(--display); font-size: 15px; letter-spacing: .03em; color: var(--ink); display: block; }
+  .node .ds { font-family: var(--mono); font-size: 10.5px; color: var(--faint); display: block; margin-top: 4px; line-height: 1.5; }
+  .node.ghost { border: 1px dashed rgba(0, 229, 255, .45); background: rgba(0, 229, 255, .03); }
+  .node.ghost .nm { color: var(--accent); }
+  .node.ghost .ds { color: rgba(0, 229, 255, .55); }
+  .lane-label {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--faint); width: 100%; margin: 12px 0 2px;
+  }
+  .lane-label.ghostl { color: var(--accent); }
+  .pipemap-note { font-size: 14px; color: var(--muted); font-style: italic; margin-top: 14px; }
+
+  /* file refs */
+  .fref { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+  footer {
+    margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line);
+    font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--faint);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Deep repo review · 7-agent sweep · claims verified against source</p>
+  <h1>Mantis, decoded<span class="dim"> — and the road to your mall dashboard</span></h1>
+  <p class="standfirst">You asked for a review of a drone tracker. What you actually have is more interesting: <strong>a defense-grade drone ISR pipeline with no tracker in it at all</strong> — a dataset factory, a detector, a telemetry codec, a geolocation engine, and a map dashboard. This briefing teaches you computer vision through what the code does, what it deliberately skips, and exactly which pieces your multi-camera people-tracking product keeps, replaces, and must build from scratch.</p>
+  <div class="meta-chips">
+    <span class="chip"><b>MANTIS</b> · shipboard/drone ISR · by INITIUM</span>
+    <span class="chip"><b>4</b> Python packages · <b>1</b> React dashboard</span>
+    <span class="chip"><b>9</b> classes · YOLOX-S · 1280px</span>
+    <span class="chip">Tracking &amp; Re-ID: <b>absent</b></span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><span class="n">00</span><a href="#verdict">The verdict: what this repo actually is</a></li>
+    <li><span class="n">01</span><a href="#data">The data engine — half of all CV is this</a></li>
+    <li><span class="n">02</span><a href="#detector">The detector — YOLOX-S, end to end</a></li>
+    <li><span class="n">03</span><a href="#time">Time &amp; telemetry — the hidden backbone</a></li>
+    <li><span class="n">04</span><a href="#geometry">Geometry — pixels onto the world</a></li>
+    <li><span class="n">05</span><a href="#dashboard">The dashboard — anatomy of the product surface</a></li>
+    <li><span class="n">06</span><a href="#discipline">The discipline layer — licensing &amp; provenance</a></li>
+    <li><span class="n">07</span><a href="#findings">Findings register — verified gaps &amp; strengths</a></li>
+    <li><span class="n">08</span><a href="#bridge">The bridge — mantis → mall MTMC</a></li>
+    <li><span class="n">09</span><a href="#fluency">Fluency kit — knobs, questions, vocabulary</a></li>
+  </ol>
+</nav>
+
+<!-- ============================== 00 ============================== -->
+<section id="verdict">
+  <p class="sec-eyebrow"><em>Section 00</em> · Executive verdict</p>
+  <h2>What this repo actually is</h2>
+
+  <p>MANTIS bills itself as <em>"Edge AI inference for shipboard ISR processing"</em> — ISR meaning Intelligence, Surveillance, Reconnaissance. It's a <strong>Month-1 milestone codebase for a defense product</strong>: the end use, stated in <span class="fref">RESEARCH_ONLY.md</span>, is analyzing video from MALE-class military drones (Gray Eagle / MQ-9). Mid-project, the team pivoted from a maritime focus to aerial, dropping two shore-camera datasets as "wrong geometry." That pivot is preserved in the docs like a fossil record — and reading a repo's fossil record is a skill you should keep.</p>
+
+  <p>Here is the entire system, with what exists drawn solid and what your product needs drawn as ghosts:</p>
+
+  <div class="pipemap" role="img" aria-label="Pipeline map of mantis subsystems, with missing tracking, re-identification, and cross-camera stages shown as dashed ghost boxes">
+    <div class="pipemap-title">System map — solid = in the repo · dashed = the gap that is your product</div>
+    <div class="lane">
+      <span class="lane-label">Offline: build the model</span>
+      <div class="node"><span class="nm">Data engine</span><span class="ds">mantis_data · 9 datasets → one COCO corpus</span></div>
+      <div class="node"><span class="nm">Trainer</span><span class="ds">mantis_detector · YOLOX-S @ 1280 + MLflow</span></div>
+      <div class="node"><span class="nm">Eval</span><span class="ds">per-source mAP via pycocotools</span></div>
+      <div class="node"><span class="nm">Export</span><span class="ds">ONNX + parity check</span></div>
+    </div>
+    <div class="lane">
+      <span class="lane-label">Per video: process a flight</span>
+      <div class="node"><span class="nm">Telemetry</span><span class="ds">DJI/CSV → KLV ST 0601 → STANAG-4609 .ts</span></div>
+      <div class="node"><span class="nm">Detect</span><span class="ds">every frame · conf 0.30 · NMS 0.65</span></div>
+      <div class="node"><span class="nm">Time-join</span><span class="ds">frame ↔ pose by timestamp ±2 frames</span></div>
+      <div class="node"><span class="nm">Geolocate</span><span class="ds">pixel → lat/lon (linearized)</span></div>
+      <div class="node"><span class="nm">Manifest</span><span class="ds">frozen JSON contract v1</span></div>
+    </div>
+    <div class="lane">
+      <span class="lane-label">Product surface</span>
+      <div class="node"><span class="nm">Studio backend</span><span class="ds">FastAPI · 1 job at a time · polling</span></div>
+      <div class="node"><span class="nm">Dashboard</span><span class="ds">React + Leaflet · video ▸ map ▸ telemetry</span></div>
+      <div class="node"><span class="nm">Calibration</span><span class="ds">human-in-the-loop sliders, saved as data</span></div>
+    </div>
+    <div class="lane">
+      <span class="lane-label ghostl">Not in the repo — the MTMC layer you will build</span>
+      <div class="node ghost"><span class="nm">Real tracker</span><span class="ds">Kalman + ByteTrack-class association</span></div>
+      <div class="node ghost"><span class="nm">Re-ID</span><span class="ds">appearance embeddings (deferred to "Month 2")</span></div>
+      <div class="node ghost"><span class="nm">Cross-camera</span><span class="ds">global IDs · topology · clustering</span></div>
+      <div class="node ghost"><span class="nm">Live ingest</span><span class="ds">RTSP · multi-stream · push updates</span></div>
+    </div>
+    <p class="pipemap-note">One nuance: a tracker technically exists — 164 lines of naive greedy matching running <em>in the browser</em> (<span class="fref">web/src/tracks.ts</span>). It exists to stop map dots flickering, not to preserve identity. Section 05 dissects it, because its failure modes are a perfect miniature of real tracking.</p>
+  </div>
+
+  <p>So the guide you read predicted "detect + track, one moving camera." The truth is better for you: <strong>mantis is strongest exactly where your guides are thinnest</strong> — dataset engineering, training discipline, timestamp handling, legal provenance, and the producer/consumer contract between a CV pipeline and a dashboard. And it's absent exactly where your guides are deepest — tracking, Re-ID, cross-camera fusion. Between the repo and your two guides, you now cover the whole map.</p>
+
+  <div class="lesson">
+    <span class="tag">The one-sentence takeaway</span>
+    <p>Mantis teaches you how a serious team builds the <strong>substrate</strong> of a vision product — data, model, time, geometry, contract, compliance. Your product is that same substrate, pointed indoors, plus the identity layer (track → Re-ID → global ID) that mantis explicitly deferred.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 01 ============================== -->
+<section id="data">
+  <p class="sec-eyebrow"><em>Section 01</em> · packages/mantis_data</p>
+  <h2>The data engine — half of all CV is this</h2>
+
+  <p>Nobody puts dataset plumbing in a tutorial, yet it decides more of your final accuracy than the model does. Mantis ingests <strong>nine public datasets</strong> — drone traffic (VisDrone, UAVDT, AU-AIR), overhead vehicles (VEDAI), satellite scenes (DIOR, DOTA), maritime (SeaShips, SMD, SeaDronesSee) — each with a completely incompatible label format: CSV rows, Pascal VOC XML, one giant JSON, MATLAB files, 8-coordinate rotated boxes. The architecture that tames them is worth memorizing.</p>
+
+  <h3>The adapter + taxonomy pattern</h3>
+  <p>Every dataset gets an <strong>adapter</strong> (~150 lines) that knows only its own format quirks. Every <em>decision</em> — which native class maps to which unified class — lives in one declarative YAML file, <span class="fref">configs/classes_unified.yaml</span>, which flattens everything into 9 classes (person is id 0; then car, truck, bus, two_wheeler, small_boat, cargo_vessel, passenger_vessel, aircraft). VisDrone's "pedestrian" and "people", SeaDronesSee's "swimmer" — all fold into <code>person</code>. A native class with no mapping is silently dropped. The file's header even forbids putting mapping decisions in adapter code.</p>
+
+  <div class="lesson">
+    <span class="tag">Lesson · label-space harmonization</span>
+    <p>When you combine datasets (and you will — CrowdHuman + MOT20 + your own mall footage), the merge decisions are <em>policy, not code</em>. Keeping them in one reviewable YAML means you can audit "does a child on a scooter count as person?" without reading Python. Copy this pattern verbatim.</p>
+  </div>
+
+  <p>The output format is <strong>COCO JSON</strong> — the lingua franca of detection: an <code>images</code> list, an <code>annotations</code> list with <code>bbox = [x, y, width, height]</code> in pixels, and a <code>categories</code> list. Mantis extends it with provenance keys (<code>source</code>, <code>source_id</code>, original class name, license, <code>commercial_use</code>) that standard tools ignore — lineage rides inside the file forever. One subtle move: every per-dataset file always declares all 9 categories even if it only populates two, so category ids can never drift between files when merging.</p>
+
+  <h3>Deduplication — why video makes dangerous training data</h3>
+  <p>Three of the datasets are videos sampled into frames. Consecutive frames are near-identical. If you shuffle and split them randomly, near-copies of the same scene land in both train and eval — <strong>the model gets graded on data it memorized</strong>, and your accuracy numbers become fiction. This is called <em>leakage</em>, and it is the single most common way beginners fool themselves.</p>
+  <p>The defense here is a <strong>perceptual hash</strong> (<span class="fref">dedup.py</span>): shrink every image to 9×8 grayscale, compare each pixel to its right neighbor, produce a 64-bit fingerprint of the image's gradient structure. Two frames whose fingerprints differ by ≤5 bits (Hamming distance) are declared duplicates and one is dropped — <em>before</em> splitting. It's invariant to re-encoding, resizing, and brightness shifts: exactly the differences between "the same frame stored twice."</p>
+
+  <div class="finding">
+    <span class="tag">Verified gap · residual temporal leakage</span>
+    <p>The split (<span class="fref">union.py</span>) is per-<em>image</em>, stratified per-source. Frames from the same video sequence that differ by more than 5 hash bits (camera panned, cars moved) survive dedup and can still straddle the train/eval boundary. For detection this inflates scores mildly. <strong>For your product it's fatal</strong>: tracking and Re-ID data must be split per-<em>sequence</em> — the same person seconds apart must never appear in both train and eval. Demand this in every dataset spec you sign off on.</p>
+  </div>
+
+  <h3>Two more moves worth knowing</h3>
+  <ul>
+    <li><strong>Stratified split with a floor.</strong> Each source contributes 10% of <em>its own</em> images to eval, minimum 1 — otherwise UAVDT's ~80k frames would drown VEDAI's 1,250 and you'd lose all evaluation signal for small domains. Seed is fixed at 42; identical inputs give byte-identical splits. Reproducibility is a feature you specify, not luck.</li>
+    <li><strong>Tiling giant images.</strong> DOTA scenes reach ~13,000px. Downscaling would erase the tiny vehicles that are the whole point, so the adapter cuts 1024×1024 tiles with 200px overlap; a ground-truth box joins a tile only if ≥50% of its area is inside. This is training-time SAHI — the same slice-and-merge idea your guide describes for inference.</li>
+  </ul>
+
+  <p>Also verified: the adapters uniformly <em>discard</em> occlusion/truncation flags the datasets provide, keep zero pure-background images (a known cause of false positives), and never apply UAVDT's "ignore regions" — so unlabeled cars there teach the detector that visible cars are background. Each of these is a deliberate-or-lazy trade you now know to ask about.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 02 ============================== -->
+<section id="detector">
+  <p class="sec-eyebrow"><em>Section 02</em> · packages/mantis_detector</p>
+  <h2>The detector — YOLOX-S, end to end</h2>
+
+  <p>The model is <strong>YOLOX-S</strong> — an anchor-free, one-stage detector from the YOLO family — consumed through the Apache-2.0 <code>pixeltable-yolox</code> library. "S" means small: depth multiplier 0.33, width 0.50. The repo's own code is deliberately thin: a config, a dataset bridge, MLflow wiring, an evaluator, an exporter. The network, losses, and training loop come from the library untouched. That's the professional default — <em>you don't write detectors, you configure them</em>.</p>
+
+  <p>Why YOLOX and not the famous Ultralytics YOLOv8/v11? <strong>Licensing.</strong> Ultralytics is AGPL-3.0 — importing it into a proprietary product legally obliges you to open-source the product. <span class="fref">LICENSES.md</span> names this trap explicitly and even warns that Ultralytics' dataset YAML files carry AGPL headers. This single fact will matter to your mall product on day one, because every tutorial you'll find uses Ultralytics.</p>
+
+  <h3>The four decisions in the config</h3>
+  <p><span class="fref">config.py</span> changes exactly four things from stock YOLOX-S, and each is a lesson:</p>
+  <ol>
+    <li><strong>9 classes</strong> — the head's classification branch matches the taxonomy.</li>
+    <li><strong>1280×1280 input</strong> instead of the 640 default. Aerial targets are tiny; resolution is the cheapest small-object fix (your guide's Part 2). Cost: ~4× compute, absorbed by dropping batch size to 8. Indoors, people are large — you'll run 640–960 and bank that compute for more cameras.</li>
+    <li><strong>Eval every 50 epochs</strong> instead of 10 — because in-training multi-GPU evaluation crashed an 8×A100 run twice (an NCCL timeout, dated in a comment). Reading war stories in comments is how you learn what actually breaks.</li>
+    <li><strong>Everything else inherited</strong> — 300 epochs, mosaic + mixup augmentation, cosine LR, EMA — with a comment: "intentionally untouched so this is a baseline." Establish a clean reference before tuning. Always.</li>
+  </ol>
+
+  <div class="lesson">
+    <span class="tag">Lesson · the augmentations that matter</span>
+    <p><strong>Mosaic</strong> stitches 4 random training images into one, jittering scale 0.1–2×; <strong>mixup</strong> blends image pairs. Both force the model to see objects at unusual scales and contexts — powerful for small objects, and standard in every modern YOLO recipe. The last 15 epochs run <em>augmentation-free</em> so the model finishes on clean, realistic imagery. For your mall model, the analog is <em>random erasing</em> (from your deep-dive guide) — synthetic occlusion, because occlusion is the indoor enemy.</p>
+  </div>
+
+  <p>One genuinely surprising verified fact: <strong>training starts from random weights</strong>. There is no COCO-pretrained checkpoint anywhere — 300 from-scratch epochs is the plan. Defensible for a specialized 9-class aerial domain; for your people detector, you will do the opposite (start from pretrained weights, fine-tune on people data) and converge in a fraction of the time.</p>
+
+  <h3>Inference: the five steps every frame takes</h3>
+  <p><span class="fref">inference.py</span> is the cleanest 200-line summary of real detector plumbing you'll find:</p>
+  <ol>
+    <li><strong>Letterbox</strong> — resize preserving aspect ratio into a 1280×1280 canvas, pad the remainder with gray (value 114), keep the scale ratio. YOLOX quirk: image anchored top-left, pixels stay BGR 0–255, <em>no normalization</em>.</li>
+    <li><strong>Forward pass</strong> — the model emits ~thousands of candidate rows: center-x, center-y, w, h, objectness, 9 class scores.</li>
+    <li><strong>Score &amp; threshold</strong> — score = objectness × best class score; drop below <code>conf</code> (0.30 in the tools).</li>
+    <li><strong>Un-letterbox</strong> — divide coordinates by the saved ratio to get original-frame pixels.</li>
+    <li><strong>Class-aware NMS</strong> at IoU 0.65 — duplicate boxes of the <em>same</em> class merge; a person box never suppresses an overlapping car box.</li>
+  </ol>
+  <p>Those two numbers — <code>conf</code> and NMS IoU — are your guide's "two knobs you tune forever," and the repo quietly proves the point: the CLI default is 0.30, but the Studio web form ships 0.6. Someone tuned the demo for a clean map over recall and never reconciled the defaults. You've now caught your first real config drift.</p>
+
+  <h3>Evaluation and export</h3>
+  <p>Eval uses pycocotools COCO mAP (AP@50:95, AP50, AP75) — but the smart part is <strong>per-source scoring</strong>: the same detections re-scored per dataset domain, because an aggregate number hides "great on land, blind at sea." At eval time the confidence threshold drops to 0.01 — mAP integrates the whole precision-recall curve, so eval wants everything; only <em>display</em> wants 0.30+. Export goes to <strong>ONNX</strong> (portable model graph) with a mandatory <strong>parity check</strong>: run the same input through PyTorch and ONNX Runtime, require answers to match within tolerance, exit nonzero otherwise. No TensorRT, no INT8 quantization anywhere — the deployment story stops at ONNX. Your guide's Part 6 optimization chain remains yours to build.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Knob</th><th>Default</th><th>What it trades</th></tr></thead>
+    <tbody>
+      <tr><td>conf threshold</td><td class="num">0.30 (UI: 0.6)</td><td>recall (find everyone) vs false positives (ghost pins)</td></tr>
+      <tr><td>NMS IoU</td><td class="num">0.65</td><td>keep overlapping neighbors vs suppress duplicates — critical in crowds</td></tr>
+      <tr><td>imgsz</td><td class="num">1280</td><td>small-object recall vs ~quadratic compute</td></tr>
+      <tr><td>batch / lr</td><td class="num">8 · 0.01/64×batch</td><td>memory vs speed; lr scales linearly with batch</td></tr>
+      <tr><td>eval conf</td><td class="num">0.01</td><td>mAP needs the full PR curve; never judge a demo at 0.01</td></tr>
+      <tr><td>max_labels</td><td class="num">50</td><td>silently truncates ground truth in dense scenes — a verified bug for crowds</td></tr>
+    </tbody>
+  </table></div>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 03 ============================== -->
+<section id="time">
+  <p class="sec-eyebrow"><em>Section 03</em> · packages/mantis_reencoder</p>
+  <h2>Time &amp; telemetry — the hidden backbone</h2>
+
+  <p>This is the subsystem with the least YouTube-tutorial glamour and the most transferable wisdom. A drone's video is useless for mapping without knowing, <em>per frame</em>, where the camera was and where it pointed. Militaries standardized that: <strong>KLV</strong> (key-length-value binary packets) per <strong>MISB ST 0601</strong> (which fields mean what), muxed into the video file per <strong>STANAG-4609</strong>. Mantis implements a 26-tag encoder/decoder from scratch: platform lat/lon/altitude, heading, gimbal angles, field of view, slant range, frame center — each value squeezed into 2–4 bytes by mapping its physical range onto an integer range (latitude resolution works out to ~5mm).</p>
+
+  <p>You will never use KLV in a mall. You will use its <em>lessons</em> daily:</p>
+
+  <div class="lesson">
+    <span class="tag">Lesson 1 · streams are joined by time, never by index</span>
+    <p>Telemetry arrives asynchronously, at a different rate than video. So every packet carries its own microsecond timestamp (Tag 2), every video frame gets a computed timeline position, and the join is <strong>nearest-timestamp within a tolerance</strong> (±2 frame periods here) via binary search. Outside tolerance → the frame honestly reports "no pose" instead of using a stale one. Your mall system is <em>nothing but</em> this problem multiplied: 20 cameras, each with its own clock, fused by time. Clock sync (NTP/PTP) plus this exact nearest-with-tolerance join is the backbone of cross-camera identity — your deep-dive guide's section C7, here as working code.</p>
+  </div>
+
+  <div class="lesson">
+    <span class="tag">Lesson 2 · never trust a codec you only round-tripped</span>
+    <p>A systematic scaling bug encodes and decodes consistently — your own tests pass while every value is wrong. So <span class="fref">test_klv_oracle.py</span> decodes a real 2009 drone sample through an <em>independent third-party parser</em> and requires tag-for-tag agreement. This is <strong>oracle testing</strong>. Apply it to anything you build that has a spec: validate against an independent implementation and real captured data, not your own mirror image.</p>
+  </div>
+
+  <div class="lesson">
+    <span class="tag">Lesson 3 · synthetic data buys you the pipeline before reality arrives</span>
+    <p>The real test flight looked 0.37° above horizontal — a useless grazing view. So <span class="fref">synth.py</span> generates a fake drone orbiting a target at a steep 40°, with every field derived so the geometry is <em>self-consistent by construction</em>: the image center provably reprojects onto the target. The whole pipeline and dashboard were built and regression-tested against synthetic telemetry before real footage existed. Your version: simulate people walking a floor plan through simulated camera views, and build your entire tracker + dashboard before a single camera is mounted.</p>
+  </div>
+
+  <p>Also here: the muxer copies H.264 video bit-for-bit (never re-encode what you only need to re-wrap), and timestamps ride <em>in the data</em> rather than trusting the container's transport timing — because the container demonstrably mangles it (GStreamer ignores the requested synchronous-KLV mode; the code documents the deviation and works around it by construction).</p>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 04 ============================== -->
+<section id="geometry">
+  <p class="sec-eyebrow"><em>Section 04</em> · geolocate.py + dji.py</p>
+  <h2>Geometry — pixels onto the world</h2>
+
+  <p>This is mantis's answer to the question your whole product hinges on: <em>a detector found something at pixel (px, py) — where is it in the world?</em> The drone answer, 77 lines in <span class="fref">geolocate.py</span>, verified line by line:</p>
+
+  <ol>
+    <li><strong>Meters-per-pixel</strong> at the aim point: GSD = 2 · slant_range · tan(HFOV/2) ÷ image_width. This one formula <em>is</em> the camera intrinsics — focal length derived from field of view, assuming a centered, undistorted lens.</li>
+    <li><strong>Look-down angle</strong> (depression) = asin(altitude ÷ slant_range) — pure flat-ground trigonometry.</li>
+    <li><strong>Pixel offsets from image center</strong>: sideways offset = du × GSD; forward offset = −dv × GSD ÷ sin(depression). That division is <strong>foreshortening</strong>: the shallower you look, the more ground each image row covers. A floor of sin ≥ 0.15 stops near-horizon views from projecting to infinity.</li>
+    <li><strong>Rotate</strong> by look azimuth into north/east meters, <strong>convert</strong> to degrees (111,320 m per degree of latitude, cos-scaled longitude). Done.</li>
+  </ol>
+
+  <p>The crucial subtlety, confirmed in source: this is <strong>not</strong> a true ray-cast and not a homography. It's a <em>linearization</em> — exact at the image center (anchored to the telemetry's reported frame-center coordinate), first-order approximate everywhere else, with error growing toward the frame edges. Camera roll is ignored entirely (DJI gimbals stabilize it to ~0). The docstring is honest: "real-ish, not survey-grade: ignores Earth curvature, terrain, and lens distortion."</p>
+
+  <div class="lesson">
+    <span class="tag">Lesson · why your problem is easier — and where it bites the same</span>
+    <p>Mantis approximates because its camera <em>moves every frame</em> and it only has noisy GPS + gimbal telemetry. Your mall cameras are bolted down. A fixed camera over a flat floor admits an <strong>exact</strong> 3×3 homography — calibrate once by clicking 4+ floor points, correct for every pixel forever. Do <em>not</em> copy this math; use <code>cv2.findHomography</code>. But every failure mode transfers directly:</p>
+    <p>• "Flat ground" breaking on terrain = "flat floor" breaking on <strong>stairs, escalators, mezzanines</strong> — you'll need per-region planes.<br>
+    • The sin(depression) blow-up = a CCTV camera staring down a long corridor at a shallow angle <strong>localizes distant people terribly</strong> — mounting angle beats resolution.<br>
+    • Projecting a pixel assumes that pixel is <em>on the floor</em> — hence bottom-center of the box (the feet), and occluded feet corrupt position exactly like terrain corrupts it here.<br>
+    • Spec-sheet FOV (the DJI's 73.7° comes from a lens spec, not measurement) = the quick hack; per-camera checkerboard calibration with a distortion model is the real version — mandatory for the fisheye lenses malls love.</p>
+  </div>
+
+  <p>The DJI side (<span class="fref">dji.py</span>) holds two more habits worth stealing. First, <strong>units-and-conventions quarantine</strong>: every uncertain assumption about DJI's metadata (degrees or radians? absolute or relative yaw? altitude above sea or above takeoff?) is isolated in one frozen options object, so reconciling against a real clip is a one-line fix. Choosing altitude-above-takeoff over sea-level altitude matters enormously — the wrong one inflates every distance by ~20×. Second, <strong>forward/inverse round-trip testing</strong>: the tests assert that deriving the aim point from a pose, then projecting the image center back, lands exactly on the aim point. Your version: reproject known floor markers through each camera's homography nightly and alert if closure drifts — a free "did someone bump the camera?" alarm.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 05 ============================== -->
+<section id="dashboard">
+  <p class="sec-eyebrow"><em>Section 05</em> · server/ + web/</p>
+  <h2>The dashboard — anatomy of the product surface</h2>
+
+  <p>The demo surface is a FastAPI backend plus a React dashboard with exactly three runtime dependencies (react, react-dom, leaflet — even the map wrapper library was rejected over its license). The layout is already your guard console: video panel with detection overlays, live map with moving markers, tracked-objects table, telemetry strip. Study four patterns and one hard truth.</p>
+
+  <h3>Pattern 1 — the frozen manifest contract</h3>
+  <p>The pipeline emits <strong>one JSON file</strong> — per frame: timestamp, camera pose, detections with pixel box, class, score, and world coordinates — governed by a versioned schema document (<span class="fref">docs/manifest_schema.md</span>) with explicit invariants the UI may rely on, e.g. <em>"no pose ⟹ positions null but boxes still present."</em> The UI performs no geometry and never branches on data source. This producer/consumer discipline is exactly how your tracking backend should talk to your dashboard: schema first, invariants written down, UI as pure consumer.</p>
+
+  <h3>Pattern 2 — one clock rules everything</h3>
+  <p>A single animation-frame loop reads the video's current time, converts it to the telemetry timeline, binary-searches the nearest frame entry — and every panel renders from that <strong>one frame index</strong>. Video, boxes, map, telemetry can never drift, including while scrubbing. Multi-panel dashboards die of desync; this is the cure, and it generalizes to multi-camera scrubbing.</p>
+
+  <h3>Pattern 3 — the marker pool</h3>
+  <p>Map dots are kept in a pool keyed by track ID; each frame the code <em>moves</em> existing markers rather than recreating them, deleting only dead tracks. Result: dots glide instead of flickering. Same pattern, floor plan instead of map — and note Leaflet has a <code>CRS.Simple</code> mode that renders an indoor floor-plan image with meter coordinates instead of world tiles. Your mapping library is already chosen.</p>
+
+  <h3>Pattern 4 — human-in-the-loop calibration</h3>
+  <p>The Calibrate panel is four sliders — FOV scale, yaw offset, north/east nudge — that warp the already-projected points live until the dots sit on the road, then save the correction <em>as data</em> into the manifest. No pipeline re-run, instant feedback. This is precisely your per-camera homography-touch-up tool: an operator nudges until dots sit in the right corridor, saves, done. The most directly reusable UX idea in the repo.</p>
+
+  <h3>The browser tracker — a miniature of your real problem</h3>
+  <p>Because the detector emits independent per-frame detections with no IDs, the dashboard builds tracks itself (<span class="fref">tracks.ts</span>): greedy nearest-neighbor matching, same class only, gated at 15 meters; unmatched detections start new tracks; tracks unseen for 20 frames die; positions and speeds smoothed by exponential moving average. Read it as your guide's Part 3 in embryo — birth, association gate, death, smoothing — <em>minus</em> everything that makes tracking trustworthy: no motion prediction (Kalman), no optimal assignment (Hungarian), no low-confidence recovery (ByteTrack's trick), no appearance features. Two same-class objects passing within 15m <em>will</em> swap IDs. It's honest about being cosmetic. Your product moves this server-side and does it properly.</p>
+
+  <div class="finding">
+    <span class="tag">The hard truth · nothing here is live</span>
+    <p>Despite the "LIVE" badge in the HUD (verified: it just means "video is playing"), the entire product is post-hoc: upload a file → a single-worker queue runs the pipeline (one job at a time, deliberately, so the GPU can't be double-booked) → browser polls every 1.5s → plays back a precomputed manifest. No RTSP ingest, no streaming inference, no push updates, no auth on any endpoint. The inference loop itself is every-frame, batch-of-one, single-stream. Your guide's Part 6 / Section C — frame sampling, cross-camera batching, decode limits, backpressure — is entirely unbuilt here. When you scope your product, the live layer is a first-class build item, not an upgrade.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 06 ============================== -->
+<section id="discipline">
+  <p class="sec-eyebrow"><em>Section 06</em> · CI, licensing, provenance</p>
+  <h2>The discipline layer — what separates a repo from a product</h2>
+
+  <p>Mantis's most sophisticated subsystem contains no computer vision at all. It's the machinery that governs what's <em>allowed</em> to enter the codebase and leave it — and for a company selling proprietary software built on open-source ML, that machinery is existential.</p>
+
+  <h3>Three layers of license enforcement</h3>
+  <ul>
+    <li><strong>At commit</strong>: a pre-commit hook scans every Python dependency's declared license and refuses GPL/AGPL. You literally cannot commit a forbidden dependency.</li>
+    <li><strong>At merge</strong>: CI re-runs the same gate, plus an equivalent gate over all npm packages (which would mechanically reject react-leaflet's "ethical source" license).</li>
+    <li><strong>Weekly</strong>: a scheduled scancode job scans the <em>source files themselves</em> for embedded GPL/AGPL headers — catching code copy-pasted from, say, an Ultralytics repo, which no dependency scan can see.</li>
+  </ul>
+  <p>Exceptions require written justification in the code. The policy doc, the scripts, and CI all agree. For your product — where the tempting default stack (Ultralytics) is AGPL and the classic datasets are non-commercial — copy this apparatus wholesale on day one.</p>
+
+  <h3>Provenance: models inherit their data's law</h3>
+  <p><span class="fref">RESEARCH_ONLY.md</span> encodes an idea most teams learn painfully: <strong>weights trained on non-commercial data are non-commercial artifacts</strong>. All nine mantis datasets are commercial-use false or unclear, so Month-1 weights may never ship, may not even be fine-tuned into a product model. The policy defines MLflow tags (<code>research_full</code> / <code>commercial_clean</code> / <code>synthetic_only</code>) and claims the trainer refuses to launch without a consistent tag.</p>
+
+  <div class="finding">
+    <span class="tag">Verified gap · the enforcement doesn't exist</span>
+    <p>I grepped the entire repo: <code>dataset_set</code> appears <strong>only in the policy document</strong>. No code sets it, checks it, or blocks training without it. The document even forbids "removing or weakening" an enforcement that was never written. The policy is real; the mechanism is aspirational. Two lessons: (1) when a doc says "the system enforces X," verify in code — you just watched it fail in a professional repo; (2) for your product this is the pattern to implement <em>for real</em>, because your world has the same trap: Market-1501, MSMT17, MOT17/20, CrowdHuman are all research-grade licenses, and under GDPR your training data provenance is a legal question, not just a contractual one.</p>
+  </div>
+
+  <h3>Smaller habits worth stealing</h3>
+  <ul>
+    <li><strong>One lockfile, frozen everywhere</strong> — dev, CI, and Docker all resolve the identical environment; drift fails the build.</li>
+    <li><strong>Two Dockerfiles</strong> — a fat CUDA training image and a slim, non-root runtime image (your training rig vs your per-site edge box), including a documented trap: syncing dependencies inside the GPU container would silently replace GPU PyTorch with the CPU build "and training would never use the card."</li>
+    <li><strong>Strictness where bugs are silent</strong> — the type checker is permissive globally but maximally strict on the one package (the binary telemetry codec) where a type confusion corrupts data quietly. In your product, that package is the cross-camera fusion engine.</li>
+    <li><strong>1MB commit cap</strong> — model weights and datasets mechanically cannot enter git; they flow through DVC (data version control). Though verified: the DVC remote is a path in one developer's home directory and no data is actually tracked yet — scaffolding, not practice.</li>
+  </ul>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 07 ============================== -->
+<section id="findings">
+  <p class="sec-eyebrow"><em>Section 07</em> · Review results</p>
+  <h2>Findings register</h2>
+  <p>Everything below was checked against source, not taken from documentation. Severity is judged against <em>mantis's own</em> goals; the right-hand note says what it means for you.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Finding</th><th>Severity</th><th>What it teaches you</th></tr></thead>
+    <tbody>
+      <tr><td>RESEARCH_ONLY enforcement documented but absent from code (<span class="m">dataset_set</span> exists only in the .md)</td><td><span class="pill gap">Critical</span></td><td>Verify claimed safeguards in code; implement yours for real</td></tr>
+      <tr><td>All 9 training datasets non-commercial/unclear → no legal path to shippable weights yet (honestly documented)</td><td><span class="pill gap">Critical</span></td><td>Check dataset licenses before training, not after</td></tr>
+      <tr><td>Per-image split leaks near-duplicate video frames across train/eval</td><td><span class="pill replace">Major</span></td><td>Split video data per-sequence, always</td></tr>
+      <tr><td><span class="m">max_labels=50</span> truncates ground truth in dense scenes (VisDrone frames exceed 50 objects)</td><td><span class="pill replace">Major</span></td><td>Crowd data needs crowd-sized limits — audit inherited defaults</td></tr>
+      <tr><td>No tracking, no Re-ID, no live ingest, no auth; benchmark package is an empty folder</td><td><span class="pill replace">Scope</span></td><td>The demo/product boundary — your build list</td></tr>
+      <tr><td>UI ships conf 0.6 while CLI/docs say 0.30 — unreconciled defaults</td><td><span class="pill replace">Minor</span></td><td>Config drift happens; single source of truth for knobs</td></tr>
+      <tr><td>Zero background-only images; ignore-regions unapplied; occlusion flags discarded</td><td><span class="pill replace">Minor</span></td><td>Negatives and occlusion labels matter — especially indoors</td></tr>
+      <tr><td>Geolocation is a center-anchored linearization; roll ignored; no ground-truth accuracy test</td><td><span class="pill ok">Accepted</span></td><td>Right-sized precision, honestly documented — emulate the honesty, not the math</td></tr>
+      <tr><td>Adapter/taxonomy data engine, provenance-stamped COCO, deterministic builds</td><td><span class="pill ok">Strength</span></td><td>Copy wholesale</td></tr>
+      <tr><td>Timestamp-join with tolerance; oracle-tested codec; self-consistent synthetic data</td><td><span class="pill ok">Strength</span></td><td>The backbone of your multi-camera system</td></tr>
+      <tr><td>Frozen manifest schema; one-clock UI; marker pool; calibration-as-data</td><td><span class="pill ok">Strength</span></td><td>Your dashboard architecture, ready-made</td></tr>
+      <tr><td>Three-layer license gating; Apache-2.0 YOLOX over AGPL Ultralytics</td><td><span class="pill ok">Strength</span></td><td>Day-one requirement for your product</td></tr>
+    </tbody>
+  </table></div>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 08 ============================== -->
+<section id="bridge">
+  <p class="sec-eyebrow"><em>Section 08</em> · From here to there</p>
+  <h2>The bridge — mantis → your mall dashboard</h2>
+
+  <p>Component by component. <span class="pill carry">Carry</span> = keep the pattern, often the code. <span class="pill replace">Replace</span> = same job, different mechanism indoors. <span class="pill build">Build</span> = doesn't exist anywhere in mantis.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Mantis component</th><th>Verdict</th><th>Mall equivalent</th></tr></thead>
+    <tbody>
+      <tr><td>Data engine (adapters, taxonomy YAML, provenance COCO, dedup)</td><td><span class="pill carry">Carry</span></td><td>Ingest CrowdHuman + MOT + your own footage; switch to per-sequence splits; keep occlusion flags</td></tr>
+      <tr><td>YOLOX detector + inference conventions</td><td><span class="pill carry">Carry</span></td><td>Person-only head, 640–960px, <em>pretrained</em> start, fine-tuned on crowd data; person is already class 0</td></tr>
+      <tr><td>Per-source evaluation</td><td><span class="pill carry">Carry</span></td><td>Per-<strong>camera</strong> mAP/IDF1 — instantly shows which camera the model struggles on</td></tr>
+      <tr><td>Timestamp discipline (content clocks, nearest-join with tolerance)</td><td><span class="pill carry">Carry</span></td><td>NTP/PTP across cameras; the same join powers cross-camera handoff</td></tr>
+      <tr><td>Manifest contract + dashboard (one clock, marker pool, calibration panel)</td><td><span class="pill carry">Carry</span></td><td>Floor-plan CRS instead of world map; per-camera homography nudger instead of FOV/yaw sliders</td></tr>
+      <tr><td>License gates + provenance policy</td><td><span class="pill carry">Carry</span></td><td>Verbatim — plus implement the training-launch enforcement mantis only documented</td></tr>
+      <tr><td>Synthetic telemetry (synth.py)</td><td><span class="pill carry">Carry</span></td><td>Simulated people on a floor plan → build tracker + dashboard before cameras exist</td></tr>
+      <tr><td>Linearized geolocation from drone pose</td><td><span class="pill replace">Replace</span></td><td>Per-camera calibrated homography (exact, one-time) + undistortion for wide lenses</td></tr>
+      <tr><td>KLV / STANAG / GStreamer mux</td><td><span class="pill replace">Replace</span></td><td>RTSP/ONVIF ingest; detections as timestamped JSON on a message bus, not muxed into video</td></tr>
+      <tr><td>Browser greedy tracker (tracks.ts)</td><td><span class="pill replace">Replace</span></td><td>Server-side ByteTrack-class tracker: Kalman + Hungarian + low-confidence second pass</td></tr>
+      <tr><td>Single-worker job queue, polling, post-hoc processing</td><td><span class="pill replace">Replace</span></td><td>Continuous per-camera pipelines; WebSocket/SSE push; frame sampling + batching across cameras</td></tr>
+      <tr><td>Person Re-ID (embeddings, gallery, thresholds)</td><td><span class="pill build">Build</span></td><td>OSNet-class embedder, track-level templates, fragmentation-vs-collision dial (your deep-dive §A)</td></tr>
+      <tr><td>Cross-camera association</td><td><span class="pill build">Build</span></td><td>Topology graph + transition times as hard gates; clustering over tracklets, not greedy lookup (§A5–A6)</td></tr>
+      <tr><td>Capacity/benchmark harness</td><td><span class="pill build">Build</span></td><td>mantis_bench is empty — cameras-per-GPU math must be measured, not assumed (§C9)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Your staged path, re-grounded</h3>
+  <p>Your overview guide's Stage 0 was "master the drone repo's tracker knobs." Since there is no tracker, here is the corrected on-ramp — each stage still independently demo-able:</p>
+  <ol>
+    <li><strong>Stage 0 — run what exists.</strong> Get a demo clip through <code>dji_pipeline</code> or the synthetic-orbit path into the Studio dashboard. Move the conf slider in the Gradio viewer and watch precision/recall trade live. Break the calibration sliders and fix them. This builds detector + geometry intuition on real code.</li>
+    <li><strong>Stage 1 — add the real tracker.</strong> Bolt ByteTrack (via the BSD-licensed <code>boxmot</code> family — check the license, per Section 06) onto <code>Detector.infer</code>, server-side. Now the manifest carries stable IDs and <span class="fref">tracks.ts</span> can retire. This is the single highest-leverage change to the existing codebase, and note the repo is already halfway hospitable: eval keeps low-confidence detections (0.01) — the same boxes ByteTrack's second pass feeds on.</li>
+    <li><strong>Stage 2 — one fixed indoor camera.</strong> Swap in a pretrained person detector fine-tuned on CrowdHuman-style data; replace geolocate with a clicked-points homography to a floor-plan image; keep the manifest contract and dashboard, switching Leaflet to <code>CRS.Simple</code>. You now have a single-camera guard view.</li>
+    <li><strong>Stages 3–6 — your guides take over.</strong> Re-ID on one camera → two overlapping cameras fused by geometry → non-overlapping cameras with topology + appearance (the real MTMC problem, deep-dive §A) → live multi-stream hardening (§C). Mantis has nothing to teach past this point; your two guides have everything.</li>
+  </ol>
+
+  <div class="lesson">
+    <span class="tag">Legal note you cannot skip</span>
+    <p>Mantis's dataset trap is your dataset trap, with GDPR on top. CrowdHuman, MOT17/20, Market-1501, MSMT17 — research-grade licenses, some ethically withdrawn (DukeMTMC). A commercial mall product needs commercially usable training data (licensed, synthetic, or your own consented footage) and the provenance enforcement mantis documented but never built. And per your overview guide's Part 9: anonymous session-scoped Re-ID, not face recognition — the EU AI Act draws the bright line there.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============================== 09 ============================== -->
+<section id="fluency">
+  <p class="sec-eyebrow"><em>Section 09</em> · Keep beside you</p>
+  <h2>Fluency kit</h2>
+
+  <h3>The questions that make you sound like you've built one</h3>
+  <ul>
+    <li>"Where does a frame enter and a result leave?" and "which numbers are config vs hard-coded?" — your guide's two universal repo questions; they worked perfectly on mantis.</li>
+    <li>"Is the split per-sequence or per-image?" — catches the leakage class of bugs in one sentence.</li>
+    <li>"What's the license of every dataset <em>and</em> every dependency — and what enforces that at commit, merge, and train time?"</li>
+    <li>"How do the streams share a clock, and what's the join tolerance?" — the mantis question, and the MTMC question.</li>
+    <li>"Is eval sliced per-camera/per-domain, or one aggregate number hiding a blind camera?"</li>
+    <li>"What happens when a camera drops, a queue fills, or the job dies at 3 a.m.?" — mantis's answer is "it's a demo"; a product must have a better one.</li>
+    <li>"Is anything actually live, or is 'live' a badge on a playback UI?" — you've now seen the difference in source.</li>
+  </ul>
+
+  <h3>Vocabulary this repo adds to your glossary</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Term</th><th>Meaning in one line</th></tr></thead>
+    <tbody>
+      <tr><td>ISR / MALE / EO FMV</td><td>Intelligence-surveillance-reconnaissance; medium-altitude long-endurance drone; electro-optical full-motion video</td></tr>
+      <tr><td>KLV · MISB ST 0601 · STANAG-4609</td><td>Binary tag-length-value telemetry · the field dictionary · the standard for muxing it into video</td></tr>
+      <tr><td>Tag 2 / content timestamp</td><td>Microsecond clock carried inside each data packet — the join key for all fusion</td></tr>
+      <tr><td>GSD</td><td>Ground sample distance: meters of world per pixel of image</td></tr>
+      <tr><td>Depression / slant range / foreshortening</td><td>Look-down angle · straight-line distance to aim point · ground stretching as the look flattens (÷ sin)</td></tr>
+      <tr><td>Letterbox (pad 114)</td><td>Aspect-preserving resize into the model's square input; invert by one ratio</td></tr>
+      <tr><td>dhash / Hamming distance</td><td>64-bit perceptual fingerprint · count of differing bits; ≤5 ⟹ duplicate</td></tr>
+      <tr><td>Temporal leakage / per-sequence split</td><td>Near-identical video frames straddling train/eval · the fix</td></tr>
+      <tr><td>Mosaic / mixup / no-aug epochs</td><td>4-image stitch · image blending · clean final epochs</td></tr>
+      <tr><td>ONNX / opset / parity check</td><td>Portable model format · its version · proving exported ≡ original</td></tr>
+      <tr><td>Oracle test</td><td>Validating your codec against an independent implementation + real captured data</td></tr>
+      <tr><td>Provenance tag / commercial_clean</td><td>Machine-readable record of what data trained a model — and whether it may ship</td></tr>
+      <tr><td>The AGPL trap</td><td>Ultralytics YOLO's license virally opens your product; YOLOX (Apache-2.0) is the standard escape</td></tr>
+      <tr><td>Manifest contract</td><td>Frozen, versioned JSON schema between pipeline and UI, with written invariants</td></tr>
+      <tr><td>Marker pool / one-clock UI</td><td>Move dots, never recreate · every panel renders from a single time index</td></tr>
+    </tbody>
+  </table></div>
+
+  <p style="margin-top:34px">You came in asking to be taught "everything." Here's the honest shape of everything: your two guides give you the <strong>theory of the identity layer</strong> (tracking, Re-ID, cross-camera, live systems). Mantis gives you a <strong>worked example of the substrate</strong> (data, model, time, geometry, contract, compliance) — including, instructively, its unfinished edges. You now know which questions to ask of both. The next artifact worth making isn't a document — it's Stage 1: a real tracker wired into this pipeline, and IDs that survive.</p>
+</section>
+
+<footer>
+  <span>MANTIS DEEP REVIEW · 2026-07-02</span>
+  <span>7 SUBSYSTEM SWEEPS · CLAIMS VERIFIED IN SOURCE</span>
+</footer>
+
+</div>

@@ -1,0 +1,644 @@
+<title>MTMC Mechanics — The Judge's Depth</title>
+<style>
+  :root {
+    --bg: #0a0710;
+    --panel: #140d1c;
+    --panel-2: #191026;
+    --line: #291a38;
+    --ink: #e4dcec;
+    --muted: #a294b4;
+    --faint: #6f5f83;
+    --accent: #b98cff;      /* amethyst — "the depth" */
+    --calc: #ffd24d;        /* worked-number gold */
+    --repo: #00e5ff;        /* reserved: from the mantis repo */
+    --good: #46e6a0;
+    --warn: #ff9d54;
+    --crit: #ff5d7a;
+    --display: "Avenir Next Condensed", "AvenirNextCondensed-DemiBold", "Arial Narrow", "Helvetica Neue", sans-serif;
+    --body: "Charter", "Iowan Old Style", "Palatino", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce){ html{ scroll-behavior:auto; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.72; margin: 0; }
+  .wrap { max-width: 76ch; margin: 0 auto; padding: 0 24px 96px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(40px, 7vw, 64px); line-height: 1.0; margin: 0 0 20px; text-transform: uppercase; text-wrap: balance; }
+  h1 .dim { color: var(--faint); }
+  .standfirst { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 62ch; }
+  .standfirst strong { color: var(--ink); }
+  .meta-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 500; }
+
+  nav.toc { padding: 28px 0 36px; border-bottom: 1px solid var(--line); }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
+  nav.toc li { display: flex; gap: 12px; align-items: baseline; }
+  nav.toc .n { font-family: var(--mono); font-size: 11px; color: var(--faint); min-width: 2ch; }
+  nav.toc a { color: var(--ink); font-family: var(--display); font-size: 17px; letter-spacing: .02em; }
+  nav.toc a:hover { color: var(--accent); text-decoration: none; }
+  @media (max-width: 640px){ nav.toc ol { grid-template-columns: 1fr; } }
+
+  section { padding-top: 64px; }
+  .sec-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+  .sec-eyebrow em { color: var(--accent); font-style: normal; }
+  h2 { font-family: var(--display); font-weight: 600; font-size: clamp(28px, 4.5vw, 40px); text-transform: uppercase; letter-spacing: .01em; line-height: 1.04; margin: 0 0 22px; text-wrap: balance; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 22px; letter-spacing: .02em; margin: 42px 0 12px; }
+  h4 { font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: .03em; margin: 28px 0 8px; color: var(--ink); }
+  p { margin: 0 0 18px; }
+  p, li { max-width: 68ch; }
+  ul, ol { padding-left: 22px; margin: 0 0 18px; }
+  li { margin-bottom: 8px; }
+  strong { color: #fff; font-weight: 600; }
+  em.term { color: var(--accent); font-style: normal; font-weight: 600; }
+  code { font-family: var(--mono); font-size: .82em; color: #d9c2ff; background: rgba(185,140,255,.08); border: 1px solid rgba(185,140,255,.16); border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+  hr.sec-end { border: none; border-top: 1px solid var(--line); margin: 64px 0 0; }
+  .fref { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+  /* callouts */
+  .calc, .lesson, .repo-box, .warn-box, .judge {
+    border: 1px solid var(--line); padding: 18px 22px; margin: 26px 0; border-radius: 0 4px 4px 0; background: var(--panel);
+  }
+  .calc { border-left: 3px solid var(--calc); background: rgba(255,210,77,.045); border-color: rgba(255,210,77,.22); }
+  .lesson { border-left: 3px solid var(--accent); }
+  .repo-box { border-left: 3px solid var(--repo); background: rgba(0,229,255,.035); border-color: rgba(0,229,255,.18); }
+  .warn-box { border-left: 3px solid var(--crit); background: rgba(255,93,122,.05); border-color: rgba(255,93,122,.25); }
+  .judge { border-left: 3px solid var(--good); background: rgba(70,230,160,.04); border-color: rgba(70,230,160,.22); }
+  .calc .tag,.lesson .tag,.repo-box .tag,.warn-box .tag,.judge .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; display: block; margin-bottom: 10px;
+  }
+  .calc .tag { color: var(--calc); }
+  .lesson .tag { color: var(--accent); }
+  .repo-box .tag { color: var(--repo); }
+  .warn-box .tag { color: var(--crit); }
+  .judge .tag { color: var(--good); }
+  .calc p:last-child,.lesson p:last-child,.repo-box p:last-child,.warn-box p:last-child,.judge p:last-child,
+  .calc ul:last-child,.judge ul:last-child,.judge ol:last-child { margin-bottom: 0; }
+  .repo-box code { color:#a8ecf7; background:rgba(0,229,255,.06); border-color:rgba(0,229,255,.14); }
+
+  /* worked-number blocks */
+  .work { font-family: var(--mono); font-size: 13.5px; line-height: 1.9; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; margin: 16px 0; overflow-x: auto; }
+  .work .cm { color: var(--faint); }
+  .work .hl { color: var(--calc); }
+  .work .gd { color: var(--good); }
+  .grid-num { font-family: var(--mono); font-size: 12.5px; color: var(--muted); border-collapse: collapse; margin: 8px 0; }
+  .grid-num td { border: 1px solid var(--line); padding: 5px 9px; text-align: center; color: var(--ink); }
+  .grid-num td.a { color: var(--calc); }
+  .grid-num td.z { color: var(--faint); }
+
+  .tbl-scroll { overflow-x: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); text-align: left; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink); }
+  td .m { font-family: var(--mono); font-size: 12.5px; color: #d9c2ff; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; border-radius: 3px; padding: 3px 8px; white-space: nowrap; display: inline-block; }
+  .pill.green{ color:var(--good); background:rgba(70,230,160,.08); border:1px solid rgba(70,230,160,.3); }
+  .pill.red{ color:var(--crit); background:rgba(255,93,122,.08); border:1px solid rgba(255,93,122,.3); }
+  .pill.gold{ color:var(--calc); background:rgba(255,210,77,.08); border:1px solid rgba(255,210,77,.3); }
+
+  footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Volume 3 · the mechanics · worked by hand</p>
+  <h1>MTMC mechanics<span class="dim"> — the depth a judge respects</span></h1>
+  <p class="standfirst">The first two volumes told you <em>what</em> the pieces are and <em>how</em> to assemble them. This one opens each mechanism and shows the <strong>actual arithmetic</strong> — a convolution you can compute in your head, a Kalman update with real numbers, the exact matrix trap that separates greedy from optimal matching, a triplet loss that moves, a homography multiplication. Gold blocks are worked numbers you can verify yourself. Then two chapters no textbook has: <strong>how to win a 36-hour hackathon building this</strong>, and <strong>the question bank to judge one</strong> — including how to catch a team that's bluffing.</p>
+  <div class="meta-chips">
+    <span class="chip"><b>7</b> mechanisms, each worked numerically</span>
+    <span class="chip">Hackathon build plan · hour by hour</span>
+    <span class="chip">Judge's Q-bank + <b>BS detector</b></span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><span class="n">00</span><a href="#stack">The whole stack as one data structure</a></li>
+    <li><span class="n">01</span><a href="#conv">Convolution — seeing, computed by hand</a></li>
+    <li><span class="n">02</span><a href="#dethead">The detector head — from grid to boxes</a></li>
+    <li><span class="n">03</span><a href="#iou">IoU &amp; NMS — the overlap arithmetic</a></li>
+    <li><span class="n">04</span><a href="#kalman">The Kalman filter — a real update</a></li>
+    <li><span class="n">05</span><a href="#hungarian">Hungarian — the greedy trap, shown</a></li>
+    <li><span class="n">06</span><a href="#embed">Embeddings &amp; triplet loss — a step that moves</a></li>
+    <li><span class="n">07</span><a href="#homography">Homography — one matrix multiply</a></li>
+    <li><span class="n">08</span><a href="#fusion">Cross-camera — the graph, scored</a></li>
+    <li><span class="n">09</span><a href="#win">How to WIN the hackathon</a></li>
+    <li><span class="n">10</span><a href="#judge">How to JUDGE it — the question bank</a></li>
+    <li><span class="n">11</span><a href="#numbers">The numbers you must have memorized</a></li>
+  </ol>
+</nav>
+
+<!-- ============ 00 ============ -->
+<section id="stack">
+  <p class="sec-eyebrow"><em>Section 00</em> · Orientation</p>
+  <h2>The whole stack as one data structure</h2>
+  <p>Before the math, hold the shape. If you can name what type of object flows between each stage, you already understand the system better than most people who've read a paper on it. Everything downstream is a transformation of one growing record:</p>
+
+  <div class="work">
+<span class="cm"># a pixel grid becomes… (detector)</span>
+frame       : uint8[1080][1920][3]        <span class="cm"># 6.2M numbers</span>
+<span class="cm"># …a list of boxes… (detector head + NMS)</span>
+detections  : [{box:[x1,y1,x2,y2], score:0.91, cls:0}]
+<span class="cm"># …with stable IDs… (tracker: Kalman + Hungarian)</span>
+tracks      : [{id:12, box, vel:[dx,dy], age, hits}]
+<span class="cm"># …carrying appearance… (Re-ID embedder)</span>
+tracklet    : {cam:3, id:12, signature:float[512], quality:0.8,
+               path:[(x,y,t)...]}         <span class="cm"># signature = the "fingerprint"</span>
+<span class="cm"># …placed on the floor… (homography)</span>
+tracklet.path : [(floor_x, floor_y, t) ...]  <span class="cm"># meters, shared map</span>
+<span class="cm"># …and fused into one identity across cameras (clustering)</span>
+global_id   : {gid:47, members:[(cam3,id12),(cam7,id5)], signature}
+  </div>
+
+  <p>Seven arrows. Each section below is one arrow, opened up. The single most important sentence in this volume: <strong>the atomic unit of a real system is not the frame and not the detection — it is the tracklet with an aggregated signature.</strong> Every robust design is built on that object. A team that talks in frames is a beginner; a team that talks in tracklets has built one.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · this record is already half-built</span>
+    <p>Mantis's <span class="fref">manifest_schema.md</span> is exactly this data structure minus the identity fields — per frame it carries <code>box_px</code>, <code>class</code>, <code>score</code>, and a world coordinate. You are adding three fields to a record the repo already defines: <code>track_id</code> (Section 05), <code>signature</code> (Section 06), <code>global_id</code> (Section 08). Knowing precisely which fields are new is knowing precisely what you're building.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 01 ============ -->
+<section id="conv">
+  <p class="sec-eyebrow"><em>Section 01</em> · The detector, mechanism 1 of 2</p>
+  <h2>Convolution — seeing, computed by hand</h2>
+  <p>A neural network "sees" by sliding tiny grids of numbers over the image and multiplying. That's the whole trick. Let me prove it moves. Here's a patch of image where the left half is dark (value 10) and the right half bright (90) — a <em class="term">vertical edge</em>:</p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+    <div>
+      <div class="fref" style="margin-bottom:6px">image patch (brightness)</div>
+      <table class="grid-num"><tbody>
+        <tr><td class="z">10</td><td class="z">10</td><td class="a">90</td></tr>
+        <tr><td class="z">10</td><td class="z">10</td><td class="a">90</td></tr>
+        <tr><td class="z">10</td><td class="z">10</td><td class="a">90</td></tr>
+      </tbody></table>
+    </div>
+    <div>
+      <div class="fref" style="margin-bottom:6px">filter (Sobel-x edge detector)</div>
+      <table class="grid-num"><tbody>
+        <tr><td>−1</td><td>0</td><td>+1</td></tr>
+        <tr><td>−2</td><td>0</td><td>+2</td></tr>
+        <tr><td>−1</td><td>0</td><td>+1</td></tr>
+      </tbody></table>
+    </div>
+  </div>
+
+  <div class="calc">
+    <span class="tag">Worked · multiply matching cells, sum them</span>
+    <div class="work">
+(10·−1)+(10·0)+(90·+1)   = <span class="hl">+80</span>
+(10·−2)+(10·0)+(90·+2)   = <span class="hl">+160</span>
+(10·−1)+(10·0)+(90·+1)   = <span class="hl">+80</span>
+<span class="cm">──────────────────────────────</span>
+edge response            = <span class="gd">+320</span>   ← lights up! an edge is here
+
+<span class="cm"># now slide the same filter onto a FLAT patch (all 10s):</span>
+(10·−1)+(10·0)+(10·+1) ×3 = <span class="gd">0</span>       ← nothing here
+    </div>
+    <p>That +320 vs 0 <em>is</em> feature detection. The filter "fires" on a dark→light vertical transition and stays silent on flatness. Flip the filter 90° and it detects horizontal edges instead.</p>
+  </div>
+
+  <h3>Why this becomes "understanding"</h3>
+  <p>One filter finds edges. A <em class="term">convolutional layer</em> is ~64 filters, each finding a different primitive (edges at angles, color blobs). Stack layers, and the second layer's filters slide over the <em>first layer's outputs</em> — so they detect patterns-of-edges: corners, curves, textures. Layer three detects patterns-of-those: a wheel, an eye, a shoulder. By layer forty, a filter fires on "standing human." Nobody designed these filters — they're the ~9 million numbers that training adjusts. That's the one intuition under all of computer vision: <strong>simple features composing into complex ones, learned from data.</strong></p>
+
+  <div class="judge">
+    <span class="tag">Judge's tell</span>
+    <p>Ask "what does the backbone actually do?" A weak answer names architectures ("it's a ResNet"). A strong answer describes the hierarchy: early layers = edges/colors, deep layers = whole objects, all learned. If they can't explain <em>why</em> a network needs depth, they've used a detector but don't understand one.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 02 ============ -->
+<section id="dethead">
+  <p class="sec-eyebrow"><em>Section 02</em> · The detector, mechanism 2 of 2</p>
+  <h2>The detector head — from grid to boxes</h2>
+  <p>The backbone turns the image into a stack of feature maps. The <em class="term">head</em> turns those into actual boxes. Here's the machinery most people hand-wave — made concrete.</p>
+
+  <p>Picture the image overlaid with a grid, say 80×80 cells (that's what a 640px image at stride 8 gives you). For <em>every one</em> of those 6,400 cells, the anchor-free head outputs a small vector of numbers:</p>
+  <div class="work">
+per grid cell, the head predicts:
+  <span class="hl">dx, dy</span>       <span class="cm"># box center offset from this cell</span>
+  <span class="hl">w, h</span>         <span class="cm"># box width &amp; height</span>
+  <span class="hl">obj</span>          <span class="cm"># "objectness": is ANYTHING here? (0–1)</span>
+  <span class="hl">p_person</span>     <span class="cm"># class scores (here just 1 class)</span>
+  </div>
+
+  <p>So a raw forward pass emits 6,400 candidate boxes. Almost all are garbage (empty floor, wall) with <code>obj</code> near 0. Two numbers filter them:</p>
+  <div class="calc">
+    <span class="tag">Worked · scoring one candidate</span>
+    <div class="work">
+cell (40,55) predicts: obj=<span class="hl">0.85</span>, p_person=<span class="hl">0.92</span>
+final score = obj × p_person = 0.85 × 0.92 = <span class="gd">0.78</span>
+
+keep it? score 0.78 ≥ conf_threshold 0.30  →  <span class="gd">YES, keep</span>
+a wall cell: obj=0.02 → score ≈ 0.02  →  discard
+    </div>
+    <p>This <code>obj × class</code> factoring is deliberate and clever: it separates "is there something here?" from "what is it?". A blurry half-person can score high on objectness even when the class is uncertain — which is exactly the low-confidence box ByteTrack later rescues (Section 05). Keep that thread in mind.</p>
+  </div>
+
+  <p>After thresholding you might still have 30 boxes for 8 real people, because several neighboring cells all fire on the same person. That's what NMS cleans up — next section. The <em class="term">anchor-free</em> label just means the head predicts <code>w,h</code> directly, rather than nudging pre-set template rectangles ("anchors"); one fewer thing to hand-tune, which is why modern YOLO and RT-DETR went anchor-free.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · you can read this happening</span>
+    <p><span class="fref">inference.py</span> line-for-line: the model emits <code>[N, 5+num_classes]</code> rows of exactly <code>(cx,cy,w,h,obj, class scores…)</code>; the code computes <code>score = obj × best_class</code>, thresholds, then converts <code>cxcywh→xyxy</code>. What you just worked by hand is the actual tensor operation in that file. Reading it after this section, it will read like plain English.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 03 ============ -->
+<section id="iou">
+  <p class="sec-eyebrow"><em>Section 03</em> · The cleanup step</p>
+  <h2>IoU &amp; NMS — the overlap arithmetic</h2>
+  <p><em class="term">IoU</em> — Intersection over Union — is the single most-used number in all of detection and tracking. It measures how much two boxes overlap, 0 (disjoint) to 1 (identical). Worked, because you'll compute it in your head all weekend:</p>
+
+  <div class="calc">
+    <span class="tag">Worked · IoU of two boxes</span>
+    <div class="work">
+box A = (100,100)→(200,200)   area = 100×100 = 10,000
+box B = (150,150)→(250,250)   area = 100×100 = 10,000
+
+<span class="cm"># intersection = the overlapping rectangle</span>
+overlap x: 150→200 = 50 wide
+overlap y: 150→200 = 50 tall
+intersection = 50×50 = <span class="hl">2,500</span>
+
+union = areaA + areaB − intersection
+      = 10,000 + 10,000 − 2,500 = <span class="hl">17,500</span>
+
+IoU = 2,500 / 17,500 = <span class="gd">0.143</span>   ← slight overlap
+    </div>
+  </div>
+
+  <p><em class="term">Non-Maximum Suppression</em> uses IoU to kill duplicate boxes on one object: sort candidates by score; take the highest; delete every remaining box whose IoU with it exceeds a threshold (say 0.7); repeat. That collapses 30 boxes to 8.</p>
+
+  <div class="warn-box">
+    <span class="tag">The crowd trap — memorize this, it wins arguments</span>
+    <p>Two <em>different</em> people standing shoulder-to-shoulder can produce boxes with IoU 0.75. Set the NMS threshold too low (aggressive, say 0.5) and NMS <strong>deletes one real person</strong>, reading them as a duplicate. This is the mechanism behind "works in the demo, fails in the Saturday food court." The fix indoors: raise NMS IoU to ~0.7–0.75 so only near-identical boxes merge. A judge who asks "how do you handle two people who overlap?" is testing whether you know NMS is a double-edged blade.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 04 ============ -->
+<section id="kalman">
+  <p class="sec-eyebrow"><em>Section 04</em> · The tracker, mechanism 1 of 2</p>
+  <h2>The Kalman filter — a real update</h2>
+  <p>The Kalman filter is described as intimidating and is actually two steps: <strong>guess where they'll be, then blend your guess with what you measured.</strong> It's what lets a track coast through occlusion and skipped frames. Let me run one full cycle with numbers.</p>
+
+  <p>Track 12's state is position and velocity: she's at pixel <code>x=100</code>, moving <code>+30</code> px/frame. Each number has an uncertainty (variance). Here's one frame:</p>
+
+  <div class="calc">
+    <span class="tag">Worked · predict, then correct</span>
+    <div class="work">
+<span class="cm"># STEP 1 — PREDICT (apply momentum, uncertainty grows)</span>
+new pos = old pos + velocity = 100 + 30 = <span class="hl">130</span>
+uncertainty grows: P: 10 → <span class="hl">21</span>   <span class="cm"># less sure after coasting</span>
+
+<span class="cm"># STEP 2 — a detection arrives at pixel 127 (noisy, we trust it ±5)</span>
+innovation = measured − predicted = 127 − 130 = −3
+Kalman gain K = 0.457   <span class="cm"># how much to trust the measurement</span>
+
+updated pos = 130 + K×(−3) = 130 − 1.37 = <span class="gd">128.6</span>
+updated vel = 30 + 0.217×(−3)      = <span class="gd">29.3</span>
+uncertainty shrinks: 21 → 11       <span class="cm"># more sure after seeing evidence</span>
+    </div>
+    <p>Read what the gain did: the prediction said 130, the measurement said 127, and the filter landed at <strong>128.6 — between them, closer to the prediction</strong> because this frame it happened to trust the model slightly more. If the detector were noisier (trust ±20 instead of ±5), the gain would shrink and it would lean on the prediction even harder. That self-balancing between "what physics says" and "what I just saw" is the entire filter.</p>
+  </div>
+
+  <h3>Why this is the thing that makes tracking work</h3>
+  <p>Now the payoff. A person walks behind a pillar for 8 frames — <em>no detections at all</em>. The filter just runs STEP 1 repeatedly: 130, 160, 190… uncertainty growing each time. When she emerges and a detection appears near the predicted 250, it matches the coasting track and reclaims ID 12. <strong>Without the Kalman filter, every occlusion births a new ID</strong> (fragmentation). With it, the track survives the gap. This is also precisely why you can sample at 5fps instead of 30 and still get smooth tracks — the filter fills the 4 unseen frames between each detection.</p>
+
+  <div class="judge">
+    <span class="tag">Judge's tell</span>
+    <p>"What happens when someone walks behind a pillar?" Weak: "we lose them / start a new track." Strong: "the motion model coasts the track for up to <code>track_buffer</code> frames and re-acquires it on the other side; if the occlusion outlasts the buffer we fragment, which is why we tuned the buffer to our camera's typical occlusion length." The second answer means they've actually watched their own failure modes.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 05 ============ -->
+<section id="hungarian">
+  <p class="sec-eyebrow"><em>Section 05</em> · The tracker, mechanism 2 of 2</p>
+  <h2>Hungarian — the greedy trap, shown</h2>
+  <p>Each frame you have N predicted track positions and M fresh detections, and you must decide which detection belongs to which track. The naive approach — "match each track to its nearest detection" — is <em class="term">greedy</em>, and here is the exact 2×2 matrix where greedy loses. This is the single clearest demonstration of why optimal assignment matters.</p>
+
+  <p>Cost = distance between a track's prediction and a detection (lower = better match). Two tracks, two detections:</p>
+
+  <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start">
+    <div>
+      <div class="fref" style="margin-bottom:6px">cost matrix (distance)</div>
+      <table class="grid-num"><tbody>
+        <tr><td class="z"></td><td class="z">det 1</td><td class="z">det 2</td></tr>
+        <tr><td class="z">track 1</td><td class="a">1.0</td><td>2.0</td></tr>
+        <tr><td class="z">track 2</td><td>1.1</td><td>9.0</td></tr>
+      </tbody></table>
+    </div>
+    <div style="flex:1;min-width:260px">
+      <div class="calc" style="margin-top:22px">
+        <span class="tag">Worked · greedy vs optimal</span>
+        <div class="work">
+<span class="cm"># GREEDY: grab the single smallest cell first</span>
+smallest = T1→D1 (1.0). Take it.
+now T2 is forced onto D2 (9.0).
+greedy total = 1.0 + 9.0 = <span class="hl">10.0</span>  ✗
+
+<span class="cm"># HUNGARIAN: minimize the TOTAL</span>
+T1→D2 (2.0) + T2→D1 (1.1) = <span class="gd">3.1</span>  ✓
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p>Greedy grabbed the tempting 1.0 and got trapped into a catastrophic 9.0 — an <strong>ID switch</strong>, the cardinal tracking sin. The <em class="term">Hungarian algorithm</em> considers all pairings jointly and finds 3.1. That 6.9-cost difference is a person's identity being swapped versus preserved. Every serious tracker (SORT, DeepSORT, ByteTrack) solves the assignment, not the greedy grab.</p>
+
+  <h3>ByteTrack's actual innovation, precisely</h3>
+  <p>Now the piece that made ByteTrack the default. Standard trackers throw away low-confidence detections (score &lt; 0.5) as noise. ByteTrack keeps them for a <em>second</em> assignment round:</p>
+  <div class="work">
+<span class="cm"># ROUND 1: match tracks to HIGH-confidence detections (score &gt; 0.5)</span>
+      → most people, matched cleanly
+<span class="cm"># ROUND 2: take the STILL-UNMATCHED tracks, and match them</span>
+<span class="cm">#          against the LOW-confidence leftovers (score 0.1–0.5)</span>
+      → the half-occluded woman whose box dropped to 0.3
+        gets matched instead of lost   <span class="gd">← the whole trick</span>
+  </div>
+  <p>Why it works: when someone is partly hidden, the detector still fires but with low confidence. That weak box is not noise — it's a real person the detector is unsure about. Rescuing it in round 2 is why ByteTrack holds identities through crowds where older trackers shatter. <strong>This is also why the detector's confidence threshold and the tracker's thresholds must be tuned together</strong> — set detector conf too high and you throw away the boxes round 2 needs.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · the omen</span>
+    <p>Mantis's evaluator already runs the detector at <code>conf=0.01</code> — deliberately keeping low-confidence boxes for mAP scoring. Those are the exact boxes ByteTrack's round 2 consumes. When you bolt ByteTrack onto <span class="fref">Detector.infer</span>, the low-confidence stream the repo already produces is your round-2 fuel — the pipeline is accidentally hospitable to the upgrade.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 06 ============ -->
+<section id="embed">
+  <p class="sec-eyebrow"><em>Section 06</em> · Re-ID, the heart</p>
+  <h2>Embeddings &amp; triplet loss — a step that moves</h2>
+  <p>An <em class="term">embedding</em> turns a person-crop into a list of numbers (say 512 of them) positioned so that <strong>same-person crops land near each other and different-person crops land far apart.</strong> "Near" is <em class="term">cosine similarity</em>. Worked, small, so the mechanism is naked:</p>
+
+  <div class="calc">
+    <span class="tag">Worked · cosine similarity of two signatures</span>
+    <div class="work">
+signature u = [1, 2, 2, 0]      <span class="cm"># 4-dim toy (real = 512)</span>
+signature v = [2, 3, 1, 1]
+
+dot(u,v)  = 1·2 + 2·3 + 2·1 + 0·1 = <span class="hl">10</span>
+|u| = √(1+4+4+0) = 3.00
+|v| = √(4+9+1+1) = 3.87
+
+cos = 10 / (3.00 × 3.87) = <span class="gd">0.861</span>   ← quite similar
+
+<span class="cm"># threshold decides: 0.861 ≥ 0.7? → SAME person</span>
+    </div>
+    <p>Cosine near 1 = same person; near 0 = unrelated. That one threshold is your product's master dial (Volume 2, §05). After normalizing the vectors, cosine and Euclidean distance rank pairs identically — which is why papers switch between them freely and mean the same thing.</p>
+  </div>
+
+  <h3>How the embedder learns that geometry — triplet loss, moving</h3>
+  <p>How do you <em>train</em> a network so same-person lands close? Show it triples and punish it when the geometry is wrong. A triple: <em class="term">anchor</em> (a crop of person X), <em class="term">positive</em> (another crop of X), <em class="term">negative</em> (a crop of person Y).</p>
+  <div class="calc">
+    <span class="tag">Worked · one triplet loss step</span>
+    <div class="work">
+current distances (want anchor CLOSE to positive, FAR from negative):
+  d(anchor, positive) = <span class="hl">0.40</span>   <span class="cm"># same person — too far!</span>
+  d(anchor, negative) = <span class="hl">0.55</span>   <span class="cm"># different person — too close!</span>
+margin m = 0.30
+
+loss = max(0,  d(a,p) − d(a,n) + m)
+     = max(0,  0.40 − 0.55 + 0.30)
+     = max(0,  <span class="gd">0.15</span>)  = 0.15   ← POSITIVE, so we learn
+
+<span class="cm"># gradient descent now nudges weights to:</span>
+<span class="cm">#   pull anchor &amp; positive together (shrink 0.40)</span>
+<span class="cm">#   push anchor &amp; negative apart  (grow 0.55)</span>
+<span class="cm"># until d(a,n) &gt; d(a,p) + 0.30 → loss hits 0, nothing to learn</span>
+    </div>
+    <p>Repeat over millions of triples and the 512-dim space self-organizes by identity. The margin (0.30) is the enforced safety gap — same-person must be closer than different-person <em>by at least that much</em>.</p>
+  </div>
+
+  <div class="warn-box">
+    <span class="tag">Where it fails — and why you must know this cold</span>
+    <p><em class="term">Batch-hard mining</em>: random triples are mostly easy (loss already 0, nothing learned), so training deliberately picks the <em>hardest</em> ones — the same-person pair that looks most different, the different-person pair that looks most alike. Consequence you can state to any judge: <strong>the model can only tell apart what its training data forced it to.</strong> Twenty people in identical black hoodies were never a hard case in Market-1501, so the embedder will collapse them to nearly one point — and no threshold fixes that. This is exactly why the next section's physics gates exist: appearance alone drowns in a uniform crowd.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 07 ============ -->
+<section id="homography">
+  <p class="sec-eyebrow"><em>Section 07</em> · The geometry</p>
+  <h2>Homography — one matrix multiply</h2>
+  <p>A <em class="term">homography</em> is a 3×3 matrix that maps any point on the camera's floor to a point on your floor-plan — <em>exactly</em>, for a flat floor, forever, once calibrated. Here's the whole operation: take a foot-pixel, make it a 3-vector by appending 1, multiply, divide out the third number.</p>
+
+  <div class="calc">
+    <span class="tag">Worked · project a foot pixel to the floor plan</span>
+    <div class="work">
+H = | 0.80  0.10   50 |     foot pixel = (600, 400)
+    | 0.00  1.20   30 |     as a vector: (600, 400, 1)
+    |0.0005 0.0002  1 |
+
+<span class="cm"># multiply H × (600,400,1):</span>
+x' = 0.80·600 + 0.10·400 + 50·1   = 570
+y' = 0.00·600 + 1.20·400 + 30·1   = 510
+w' = 0.0005·600 + 0.0002·400 + 1  = 1.38
+
+<span class="cm"># divide by w' — this is the "perspective" step:</span>
+floor_x = 570 / 1.38 = <span class="gd">413</span>
+floor_y = 510 / 1.38 = <span class="gd">370</span>
+
+→ person is at floor-plan (413, 370)  <span class="cm"># centimeters, say</span>
+    </div>
+    <p>That division by <code>w'</code> is what makes it <em>perspective</em> rather than a flat stretch — points farther from the camera get compressed exactly the way a receding floor looks. The 8 free numbers in H (the 9th is fixed by that division) are why you need <strong>4 point-correspondences</strong> to solve for it: each gives 2 equations, 4×2 = 8.</p>
+  </div>
+
+  <p>You never compute H by hand — <code>cv2.findHomography</code> takes your clicked point-pairs and returns it, using <em class="term">RANSAC</em> to ignore your one fat-fingered click (it fits many candidate matrices from random 4-point subsets and keeps the one the most points agree with). But now you know what the returned matrix <em>does</em> to a pixel.</p>
+
+  <div class="warn-box">
+    <span class="tag">The two failure modes to name</span>
+    <p><strong>(1) Wrong pixel:</strong> the homography is only exact for points <em>on the floor</em>, so you project the box's bottom-center (the feet). Project the box center and you place people a meter deep into the floor. Occluded feet (behind a counter) push the point too far — the same error terrain causes for the drone. <strong>(2) Wrong plane:</strong> "flat floor" breaks on stairs, escalators, mezzanines — each needs its own homography. A judge asking "what about the escalator?" is checking if you know a single homography assumes a single plane.</p>
+  </div>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · exact-math replaces approximate-math, same slot</span>
+    <p>Mantis's <span class="fref">geolocate.py</span> does the <em>approximate, linearized</em> version of this because its camera moves and it only has noisy GPS. Your fixed camera earns the <em>exact</em> homography. Same input (a foot pixel), same output (a world coordinate), same pipeline slot — you're upgrading the math from "real-ish" to "exact," which is the rare case where your problem is genuinely easier than the repo's.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 08 ============ -->
+<section id="fusion">
+  <p class="sec-eyebrow"><em>Section 08</em> · The core IP, scored</p>
+  <h2>Cross-camera — the graph, scored numerically</h2>
+  <p>This is where the product is won. You have tracklets from every camera; you must decide which belong to the same human. The mechanism, made numeric — and the exact reason "physics gates, appearance disambiguates" is not a slogan but an algorithm.</p>
+
+  <p>Scenario: track 12 left camera 3's east edge; three candidate tracklets just appeared elsewhere. Score each edge:</p>
+
+  <div class="calc">
+    <span class="tag">Worked · scoring three candidate matches for track 12</span>
+    <div class="work">
+track 12 exited cam-3 east edge at t=0. Candidates:
+
+           appearance  transit    topology     VERDICT
+           (cosine)    gap        path?
+cand A  →   <span class="hl">0.88</span>       11 s       cam3→cam7 ✓   ← 8–15s window ✓
+cand B  →   <span class="hl">0.91</span>        2 s       cam3→cam7 ✓   ← too fast! floor=5s
+cand C  →   <span class="hl">0.86</span>       11 s       cam3→cam9 ✗   ← no path
+
+<span class="cm"># STEP 1 — HARD GATES (physics kills, ignoring appearance):</span>
+cand B: 2s &lt; 5s minimum walk  → <span class="gd">edge weight = 0</span>  (teleport)
+cand C: no topology path       → <span class="gd">edge weight = 0</span>
+<span class="cm"># B had the BEST appearance (0.91) and is still killed. That's the point.</span>
+
+<span class="cm"># STEP 2 — only cand A survived. Now appearance decides:</span>
+0.88 ≥ threshold 0.70  → <span class="gd">MATCH. track12 = cand A = global #47</span>
+    </div>
+    <p>Look at what happened: candidate B had the <em>highest</em> appearance similarity (0.91) and was eliminated anyway, because a human can't cross that distance in 2 seconds. That is the whole reason cross-camera tracking survives a uniform crowd: <strong>of twenty identical hoodies, physics admits only the two or three who were in the right place at the right time — appearance only chooses among those.</strong> A system that scores appearance first and drowns.</p>
+  </div>
+
+  <h3>Why it's clustering, not lookup — the one conceptual upgrade</h3>
+  <p>The naive design assigns each new tracklet to its nearest existing ID, one at a time (greedy — the same trap as Section 05, now global). The correct design collects all tracklets in a time window, builds a graph where edge weights are these fused scores, and <em class="term">clusters</em> it — partitioning into groups where each group is one human, respecting the hard constraint that <em>one person can't be two places at once</em> (a "cannot-link" between overlapping-in-time tracklets). Solving it jointly means an early ambiguous match can be revised when better evidence arrives, instead of cascading into errors.</p>
+
+  <div class="judge">
+    <span class="tag">Judge's tell — this one question separates the top team</span>
+    <p>"How do you tell apart two people dressed identically?" The losing answer is about a better embedder ("we use a bigger Re-ID model"). The winning answer is: "appearance <em>can't</em> — we gate on space-time first. The camera topology says only the person who physically could have made that transit is a candidate, so appearance only disambiguates among the few who survive the physics gate." A team that says this has understood the actual hard problem. A team that only talks about their model has not.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 09 ============ -->
+<section id="win">
+  <p class="sec-eyebrow"><em>Section 09</em> · The offensive playbook</p>
+  <h2>How to WIN the hackathon</h2>
+  <p>A hackathon is not the product from Volume 2 — it's a 36-hour demo that must <em>look</em> like the product and survive 5 minutes of expert questions. Different game, sharp rules.</p>
+
+  <h3>The winning scope: two laptops, one map, a jaw-drop moment</h3>
+  <p>Do <strong>not</strong> attempt the full pipeline. Win with a vertical slice that shows the one magic thing — a person tracked across two cameras onto one map — and fake nothing that a judge can catch. The build:</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Hours</th><th>Do this</th><th>Why it wins</th></tr></thead>
+    <tbody>
+      <tr><td class="num">0–3</td><td>Two webcams/phones as RTSP. Pretrained YOLOX or YOLO person detector running live on both. Draw boxes.</td><td>Detection working in hour 3 = you're ahead of half the room already</td></tr>
+      <tr><td class="num">3–8</td><td>Bolt on ByteTrack (pip, MIT build). Stable IDs per camera. Label boxes "P-12".</td><td>Stable IDs are visually obvious and most teams won't get here</td></tr>
+      <tr><td class="num">8–14</td><td>Click 4 floor points per camera → <code>cv2.findHomography</code>. Draw a floor-plan panel; put a dot per person.</td><td>The map is the money shot. Judges "get it" instantly</td></tr>
+      <tr><td class="num">14–22</td><td>The hard 20%: OSNet embeddings + a <strong>space-time gate</strong> between the two cameras. Person walks cam A → cam B, keeps one color/ID on the map.</td><td>THIS is the winning moment — cross-camera identity. Almost nobody demos it working</td></tr>
+      <tr><td class="num">22–30</td><td>Polish the dashboard: one clock, gliding dots (marker pool), click a dot → see that camera feed. Handle the demo-day failure cases.</td><td>Polish reads as "product," not "hack"</td></tr>
+      <tr><td class="num">30–36</td><td>Rehearse the 3-min demo + the Q&amp;A answers from Section 10. Record a backup video in case live fails.</td><td>The team that rehearses the pitch beats the team with more features</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="lesson">
+    <span class="tag">The five judgeable decisions that win points</span>
+    <ol>
+      <li><strong>Say "MTMC" and "tracklet" out loud.</strong> The correct vocabulary signals you've read the literature. "Multi-target multi-camera tracking; our atomic unit is the tracklet with an aggregated appearance signature" — instant credibility.</li>
+      <li><strong>Show the physics gate, name it as your insight.</strong> "Appearance alone fails on look-alikes, so we gate on camera topology and transit time first" — this is the sentence that wins, because it's the actual hard problem and most teams don't know it exists.</li>
+      <li><strong>Demo one failure honestly.</strong> "Here two people cross and we briefly swap — here's why, and here's the fix we'd ship." Judges trust a team that knows its own failure modes far more than one claiming perfection.</li>
+      <li><strong>Anonymous by design, and say so.</strong> "Session-scoped IDs, no face recognition, no identity database — which is also what keeps it lawful under GDPR and the EU AI Act." Nails the ethics question before it's asked.</li>
+      <li><strong>Right-size the accuracy claim.</strong> "We localize to about a meter, which is all a guard needs — which shop, which corridor." Claiming centimeters would out you as someone who hasn't measured.</li>
+    </ol>
+  </div>
+
+  <div class="warn-box">
+    <span class="tag">Demo-day landmines (these kill more demos than bad code)</span>
+    <p>Conference WiFi dies → run everything <strong>local</strong>, no cloud calls, basemap tiles cached (mantis's exact trick: a fallback so the map shows dots on black, not broken tiles). Lighting is different from your practice room → recalibrate homography on-site in the morning, and set detector conf a notch low so you don't miss people in front of the judges. Live inference stutters on the venue laptop → have the backup recording ready. The clock desync bug → NTP all machines the night before. Every one of these has ended a good project.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 10 ============ -->
+<section id="judge">
+  <p class="sec-eyebrow"><em>Section 10</em> · The bench</p>
+  <h2>How to JUDGE it — the question bank</h2>
+  <p>Judging well means separating teams that <em>built</em> it from teams that <em>wired demos together</em> — both of which can look identical on stage for 3 minutes. Here is the graduated question bank, easy to lethal, each with the tell.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Ask</th><th>Weak answer (used a tutorial)</th><th>Strong answer (understands it)</th></tr></thead>
+    <tbody>
+      <tr><td>"Detection or tracking — what's the difference in your system?"</td><td>Uses them interchangeably</td><td>"Detection is per-frame and memoryless; tracking links detections over time into IDs. Different failure modes."</td></tr>
+      <tr><td>"What keeps an ID stable when someone is occluded?"</td><td>"The model handles it"</td><td>Names the Kalman coast + <code>track_buffer</code>; knows it fragments past the buffer</td></tr>
+      <tr><td>"Two people in identical clothes — how?"</td><td>"Better Re-ID model"</td><td>Space-time / topology gate first; appearance only among the physically-plausible few</td></tr>
+      <tr><td>"Per-frame or per-sequence train/eval split?"</td><td>"…per-frame?" or blank</td><td>Per-sequence; explains the leakage that per-frame causes on video</td></tr>
+      <tr><td>"What's your accuracy metric?"</td><td>"Accuracy" / only mAP</td><td>IDF1 / HOTA for identity; knows MOTA is detection-dominated; measured on <em>own</em> footage</td></tr>
+      <tr><td>"Where does the world coordinate come from?"</td><td>Hand-waves "the map"</td><td>Homography from clicked floor points; projects foot-point; knows the flat-plane limit</td></tr>
+      <tr><td>"Face recognition?"</td><td>"Yeah we could add it" (danger)</td><td>"No — anonymous Re-ID by design; face-ID is a GDPR/AI-Act bright line we stay behind"</td></tr>
+      <tr><td>"20 cameras, one GPU — does it run?"</td><td>"We'd need more GPUs"</td><td>Frame-sampling + cross-camera batching + INT8; knows decode sessions are the real ceiling</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The BS detector — five ways to catch a bluff in one minute</h3>
+  <div class="judge">
+    <span class="tag">If you have 60 seconds, ask these</span>
+    <ol>
+      <li><strong>"Show me it failing."</strong> A team that has run their own system can produce a failure instantly and explain it. A team that hasn't will stall or claim it doesn't fail — the tell.</li>
+      <li><strong>"What's your <code>track_buffer</code> / similarity threshold set to, and why that number?"</strong> A real builder has a specific number and a reason ("60 frames, ~2s occlusions in our space"). A bluffer gives a vague range or "the defaults."</li>
+      <li><strong>"Is this live or a recording?"</strong> (You saw in the mantis review that a "LIVE" badge can just mean "video playing.") Ask them to walk a new person in front of the camera <em>now</em>. Live systems survive it; demos of a saved clip can't.</li>
+      <li><strong>"Where does the cross-camera match actually happen — in the browser or on the server?"</strong> A browser-side greedy matcher (like mantis's <span class="fref">tracks.ts</span>) is a cosmetic tracker, not real MTMC. The answer reveals whether identity is real or decorative.</li>
+      <li><strong>"What data did you train on, and can you ship a model trained on it?"</strong> If they trained on CrowdHuman / Market-1501 and plan to sell it, they've missed the research-only license trap — a tell they haven't thought past the demo.</li>
+    </ol>
+  </div>
+
+  <h3>The scoring rubric worth using</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Dimension</th><th>What earns full marks</th><th>Weight</th></tr></thead>
+    <tbody>
+      <tr><td>Cross-camera identity works</td><td>A person demonstrably stays one ID across ≥2 cameras, live</td><td class="num">30%</td></tr>
+      <tr><td>Understands the hard problem</td><td>Articulates physics-gates-then-appearance; names tracklet/IDF1/topology</td><td class="num">25%</td></tr>
+      <tr><td>Honest about limits</td><td>Shows a failure, right-sizes accuracy, knows what's faked</td><td class="num">15%</td></tr>
+      <tr><td>Systems &amp; scale thinking</td><td>Sampling, batching, edge-vs-server, the decode ceiling</td><td class="num">15%</td></tr>
+      <tr><td>Ethics &amp; law by design</td><td>Anonymous IDs, GDPR/AI-Act awareness, retention</td><td class="num">15%</td></tr>
+    </tbody>
+  </table></div>
+  <p>Notice what's <em>not</em> weighted: number of features, lines of code, slickness of UI alone. The team that tracks one person across two cameras and explains <em>why that's hard</em> beats the team with ten features and no cross-camera identity. That's the whole game, and now you can referee it.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ============ 11 ============ -->
+<section id="numbers">
+  <p class="sec-eyebrow"><em>Section 11</em> · The cheat sheet</p>
+  <h2>The numbers you must have memorized</h2>
+  <p>Walk in with these in your head. They're the difference between sounding fluent and sounding like you skimmed a blog.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Quantity</th><th>Value / range</th><th>The one-line reason</th></tr></thead>
+    <tbody>
+      <tr><td>Detector conf (display)</td><td class="num">~0.3</td><td>Below: shadows become people. Above: occluded people vanish</td></tr>
+      <tr><td>Detector conf (feeding tracker)</td><td class="num">~0.1</td><td>Keep low boxes for ByteTrack's round 2</td></tr>
+      <tr><td>NMS IoU (indoor crowds)</td><td class="num">0.7–0.75</td><td>Lower deletes one of two overlapping people</td></tr>
+      <tr><td>Input resolution (indoor)</td><td class="num">640–960</td><td>People are big indoors; 1280 is aerial overkill</td></tr>
+      <tr><td>Detection sample rate</td><td class="num">~5 fps</td><td>Kalman fills the gaps; cuts compute ~5×</td></tr>
+      <tr><td>track_buffer</td><td class="num">60–90 proc. frames</td><td>Survive pillar occlusions; too high hijacks new people</td></tr>
+      <tr><td>Re-ID vector size</td><td class="num">512</td><td>OSNet's signature length</td></tr>
+      <tr><td>Cosine match threshold</td><td class="num">0.5–0.7, per cam pair</td><td>The fragmentation-vs-collision master dial</td></tr>
+      <tr><td>Homography min points</td><td class="num">4 (use 8+)</td><td>8 unknowns ÷ 2 eqns/point; extras average noise</td></tr>
+      <tr><td>Localization target</td><td class="num">~1 meter</td><td>Guard needs "which corridor," not centimeters</td></tr>
+      <tr><td>Transit-gate floor</td><td class="num">min walk time</td><td>Faster = physically impossible = kill the match</td></tr>
+      <tr><td>Cameras per GPU</td><td class="num">~a dozen @ 5fps</td><td>With batching + INT8; decode is the real ceiling</td></tr>
+      <tr><td>Identity metric</td><td class="num">IDF1 / HOTA</td><td>Not "accuracy," not mAP — those miss identity</td></tr>
+      <tr><td>Latency budget ("live")</td><td class="num">1–2 s end-to-end</td><td>What "live" means for a guard, not milliseconds</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="lesson">
+    <span class="tag">The five sentences that prove fluency</span>
+    <ul>
+      <li>"The atomic unit is the <strong>tracklet with an aggregated signature</strong>, not the frame."</li>
+      <li>"<strong>Physics gates, appearance disambiguates</strong> — space-time first, then Re-ID among the survivors."</li>
+      <li>"Both master dials are the same trade: <strong>fragmentation</strong> (one person → many IDs) versus <strong>collision</strong> (many people → one ID)."</li>
+      <li>"Geometry is <strong>metres not centimetres</strong> — spend effort on foot-points and calibration, not sub-pixel tricks."</li>
+      <li>"It dies in production from <strong>decode limits, clock skew, and missing backpressure</strong>, not from a wrong model."</li>
+    </ul>
+    <p style="margin-top:12px">Say these five with the worked mechanisms behind them, and you can hold your own with anyone in the room — building or judging. That was the goal.</p>
+  </div>
+</section>
+
+<footer>
+  <span>MTMC MECHANICS · VOL. 3 · 2026-07-02</span>
+  <span>COMPANIONS: MANTIS DECODED · THE BUILDER'S MANUAL</span>
+</footer>
+
+</div>

@@ -1,0 +1,543 @@
+<title>The Urban MTMC Builder's Manual</title>
+<style>
+  :root {
+    --bg: #070b09;
+    --panel: #0d1410;
+    --panel-2: #111a14;
+    --line: #1e2b22;
+    --ink: #d9e4dc;
+    --muted: #8aa091;
+    --faint: #5e7466;
+    --accent: #3ddc84;       /* phosphor green — the build */
+    --repo: #00e5ff;         /* cyan — reserved: "comes from the mantis repo" */
+    --warn: #ffb21d;
+    --crit: #ff4d4d;
+    --display: "Avenir Next Condensed", "AvenirNextCondensed-DemiBold", "Arial Narrow", "Helvetica Neue", sans-serif;
+    --body: "Charter", "Iowan Old Style", "Palatino", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.72; margin: 0; }
+  .wrap { max-width: 74ch; margin: 0 auto; padding: 0 24px 96px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(40px, 7vw, 62px); line-height: 1.02; margin: 0 0 20px; text-transform: uppercase; text-wrap: balance; }
+  h1 .dim { color: var(--faint); }
+  .standfirst { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 62ch; }
+  .standfirst strong { color: var(--ink); }
+  .meta-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 500; }
+
+  nav.toc { padding: 28px 0 36px; border-bottom: 1px solid var(--line); }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 32px; }
+  nav.toc li { display: flex; gap: 12px; align-items: baseline; }
+  nav.toc .n { font-family: var(--mono); font-size: 11px; color: var(--faint); min-width: 2ch; }
+  nav.toc a { color: var(--ink); font-family: var(--display); font-size: 17px; letter-spacing: .02em; }
+  nav.toc a:hover { color: var(--accent); text-decoration: none; }
+  @media (max-width: 640px) { nav.toc ol { grid-template-columns: 1fr; } }
+
+  section { padding-top: 64px; }
+  .sec-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+  .sec-eyebrow em { color: var(--accent); font-style: normal; }
+  h2 { font-family: var(--display); font-weight: 600; font-size: clamp(28px, 4.5vw, 38px); text-transform: uppercase; letter-spacing: .01em; line-height: 1.05; margin: 0 0 22px; text-wrap: balance; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .02em; margin: 40px 0 12px; }
+  h4 { font-family: var(--display); font-weight: 600; font-size: 17px; letter-spacing: .03em; margin: 28px 0 8px; color: var(--ink); }
+  p { margin: 0 0 18px; }
+  p, li { max-width: 68ch; }
+  ul, ol { padding-left: 22px; margin: 0 0 18px; }
+  li { margin-bottom: 8px; }
+  strong { color: #fff; font-weight: 600; }
+  code { font-family: var(--mono); font-size: .82em; color: #b2f4cf; background: rgba(61, 220, 132, .07); border: 1px solid rgba(61, 220, 132, .14); border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+  hr.sec-end { border: none; border-top: 1px solid var(--line); margin: 64px 0 0; }
+  .fref { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+  .lesson, .repo-box, .warn-box {
+    background: var(--panel); border: 1px solid var(--line);
+    padding: 18px 22px; margin: 26px 0; border-radius: 0 4px 4px 0;
+  }
+  .lesson { border-left: 3px solid var(--accent); }
+  .repo-box { border-left: 3px solid var(--repo); background: rgba(0, 229, 255, .035); border-color: rgba(0, 229, 255, .18); }
+  .warn-box { border-left: 3px solid var(--crit); background: rgba(255, 77, 77, .05); border-color: rgba(255, 77, 77, .25); }
+  .lesson .tag, .repo-box .tag, .warn-box .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; display: block; margin-bottom: 8px;
+  }
+  .lesson .tag { color: var(--accent); }
+  .repo-box .tag { color: var(--repo); }
+  .warn-box .tag { color: var(--crit); }
+  .lesson p:last-child, .repo-box p:last-child, .warn-box p:last-child, .lesson ul:last-child, .repo-box ul:last-child { margin-bottom: 0; }
+  .repo-box code { color: #a8ecf7; background: rgba(0,229,255,.06); border-color: rgba(0,229,255,.14); }
+
+  .tbl-scroll { overflow-x: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); text-align: left; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink); }
+  td .m { font-family: var(--mono); font-size: 12.5px; color: #b2f4cf; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; border-radius: 3px; padding: 3px 8px; white-space: nowrap; display: inline-block; }
+  .pill.ok    { color: var(--accent); background: rgba(61,220,132,.08); border: 1px solid rgba(61,220,132,.3); }
+  .pill.repo  { color: var(--repo);   background: rgba(0,229,255,.07);  border: 1px solid rgba(0,229,255,.3); }
+  .pill.warn  { color: var(--warn);   background: rgba(255,178,29,.08); border: 1px solid rgba(255,178,29,.3); }
+  .pill.crit  { color: var(--crit);   background: rgba(255,77,77,.08);  border: 1px solid rgba(255,77,77,.3); }
+
+  /* system map */
+  .pipemap { margin: 34px 0 10px; }
+  .pipemap-title { font-family: var(--mono); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--faint); margin-bottom: 14px; }
+  .lane { display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+  .lane-label { font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--faint); width: 100%; margin: 12px 0 2px; }
+  .node { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 10px 12px; flex: 1 1 130px; min-width: 120px; }
+  .node .nm { font-family: var(--display); font-size: 15px; letter-spacing: .03em; color: var(--ink); display: block; }
+  .node .ds { font-family: var(--mono); font-size: 10.5px; color: var(--faint); display: block; margin-top: 4px; line-height: 1.5; }
+  .node.model { border-color: rgba(61,220,132,.4); }
+  .node.model .nm { color: var(--accent); }
+  .node.fromrepo { border-color: rgba(0,229,255,.35); }
+  .node.fromrepo .nm { color: var(--repo); }
+  .pipemap-note { font-size: 14px; color: var(--muted); font-style: italic; margin-top: 14px; }
+
+  footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Volume 2 · companion to "Mantis, Decoded" · build manual</p>
+  <h1>The urban MTMC<br>builder's manual<span class="dim"> — square one to live dashboard</span></h1>
+  <p class="standfirst">Everything needed to build your system: many cameras in a building, every person detected, tracked, and given one anonymous identity across cameras, all rendered live on a single floor-plan dashboard. This manual explains <strong>what each component actually does</strong>, <strong>what data to find and how to use it</strong>, <strong>exactly what to reuse from the mantis repo</strong>, and the order to build it in. Cyan boxes always mean one thing: <strong>this piece already exists in the repo</strong>.</p>
+  <div class="meta-chips">
+    <span class="chip">System of <b>4 models + 1 algorithm</b>, not one model</span>
+    <span class="chip"><b>11</b> sections · read in order</span>
+    <span class="chip">Every dataset listed <b>with its license</b></span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><span class="n">00</span><a href="#system">What you're actually building</a></li>
+    <li><span class="n">01</span><a href="#lab">Square one — your lab</a></li>
+    <li><span class="n">02</span><a href="#data">Data — what to find, use, and make</a></li>
+    <li><span class="n">03</span><a href="#detector">Model 1 — the person detector</a></li>
+    <li><span class="n">04</span><a href="#tracker">Model 2 — the tracker</a></li>
+    <li><span class="n">05</span><a href="#reid">Model 3 — the Re-ID embedder</a></li>
+    <li><span class="n">06</span><a href="#geometry">The geometry layer — cameras onto one map</a></li>
+    <li><span class="n">07</span><a href="#fusion">Model 4 — the cross-camera engine</a></li>
+    <li><span class="n">08</span><a href="#live">The live system &amp; dashboard</a></li>
+    <li><span class="n">09</span><a href="#eval">Evaluation — how you know it works</a></li>
+    <li><span class="n">10</span><a href="#plan">The build plan — milestones M0–M7</a></li>
+    <li><span class="n">11</span><a href="#dials">Master dials &amp; the kit list</a></li>
+  </ol>
+</nav>
+
+<!-- ================= 00 ================= -->
+<section id="system">
+  <p class="sec-eyebrow"><em>Section 00</em> · The shape of the thing</p>
+  <h2>What you're actually building</h2>
+
+  <p>First, kill a misconception baked into the phrase "the model": <strong>there is no single urban-environment model.</strong> What you're building is a <em>system</em> of four learned models plus one algorithm, wired together by a geometry layer and a live pipeline. Each piece has one job, its own training data, its own failure modes, and its own knobs. You will build and validate them <em>in order</em>, because each one consumes the output of the one before it.</p>
+
+  <div class="pipemap" role="img" aria-label="System map of the urban MTMC product showing the four models, the algorithm, and supporting layers">
+    <div class="pipemap-title">The system — green = learned model or core algorithm · cyan = pattern lifted from mantis</div>
+    <div class="lane">
+      <span class="lane-label">Per camera, continuously</span>
+      <div class="node fromrepo"><span class="nm">Ingest</span><span class="ds">RTSP decode · sample ~5 fps</span></div>
+      <div class="node model"><span class="nm">1 · Detector</span><span class="ds">frame → person boxes<br>YOLOX, fine-tuned</span></div>
+      <div class="node model"><span class="nm">2 · Tracker</span><span class="ds">boxes → stable IDs<br>ByteTrack + Kalman</span></div>
+      <div class="node model"><span class="nm">3 · Re-ID</span><span class="ds">crop → 512-number<br>appearance signature</span></div>
+    </div>
+    <div class="lane">
+      <span class="lane-label">Across all cameras, centrally</span>
+      <div class="node fromrepo"><span class="nm">Geometry</span><span class="ds">homography: pixels → floor plan</span></div>
+      <div class="node model"><span class="nm">4 · Cross-camera engine</span><span class="ds">tracklets → one global ID per human<br>physics gates + appearance clustering</span></div>
+      <div class="node fromrepo"><span class="nm">Event stream</span><span class="ds">timestamped JSON contract</span></div>
+      <div class="node fromrepo"><span class="nm">Dashboard</span><span class="ds">floor plan · live dots · click-through</span></div>
+    </div>
+    <p class="pipemap-note">"Model 4" is really an algorithm (clustering under constraints) that <em>uses</em> Model 3's outputs — but treat it as a first-class component; it's where the product lives or dies.</p>
+  </div>
+
+  <h3>One second in the life of the finished system</h3>
+  <p>Hold this narrative — every section below zooms into one step of it. A camera in the north corridor delivers 25 frames this second; your system decodes them all but runs the expensive detector on only 5. The <strong>detector</strong> looks at each sampled frame and outputs rectangles: "person, 91% confident, here." The <strong>tracker</strong> — which has been following everyone in this corridor — predicts where each known person should be by now (Kalman filter), matches predictions to the new boxes (Hungarian algorithm), and keeps IDs stable: the woman in the red coat is still local track 12. For every healthy track, the <strong>Re-ID embedder</strong> looks at the person's cropped image and distills it into 512 numbers — her appearance signature — which is averaged into the track's running template. The <strong>geometry layer</strong> takes the bottom-center of her box (her feet), pushes it through this camera's calibrated homography matrix, and out comes a floor-plan coordinate: corridor N, 42.3m east. All of this is stamped with a timestamp from the building's shared clock and published as a tiny JSON event. Centrally, the <strong>cross-camera engine</strong> notices that track 12 vanished from the north corridor's east edge 9 seconds ago, and a new track just appeared on camera 7 — which the topology graph says is 8–15 walking-seconds away. Physics says plausible; her signature matches at cosine similarity 0.83; the engine assigns both tracklets the same <strong>global ID #47</strong>. On the guard's dashboard, dot #47 glides from one corridor into the next, one continuous person. That is the whole product.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · the skeleton you inherit</span>
+    <p>Mantis already demonstrates, in working code: the detector plumbing (<span class="fref">mantis_detector/inference.py</span>), the timestamp-join discipline (<span class="fref">metadata/read.py</span>), the pixel→world projection slot (<span class="fref">metadata/geolocate.py</span> — you swap its math for homographies), the frozen JSON contract to a dashboard (<span class="fref">docs/manifest_schema.md</span>), the dashboard itself (<span class="fref">web/src/</span>), and the licensing/provenance machinery (<span class="fref">scripts/check_licenses.py</span>, <span class="fref">RESEARCH_ONLY.md</span>). What it lacks — tracker, Re-ID, cross-camera, live ingest — is precisely this manual's Sections 04, 05, 07, and 08.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 01 ================= -->
+<section id="lab">
+  <p class="sec-eyebrow"><em>Section 01</em> · Setup</p>
+  <h2>Square one — your lab</h2>
+
+  <p>You do not need a mall to start. You need a room, two cameras, and one GPU. Here is the minimum viable lab and why each piece is enough:</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Thing</th><th>Minimum</th><th>Why this is enough</th></tr></thead>
+    <tbody>
+      <tr><td>Cameras ×2</td><td class="num">any RTSP source</td><td>Two cheap PoE IP cams (~€40 each), or two old phones running an RTSP-server app, or even two USB webcams. What matters: fixed mounting, and that both feeds carry timestamps. Two cameras is the magic number — it's the smallest system with a cross-camera handoff.</td></tr>
+      <tr><td>Mounting</td><td class="num">2.5–3 m high, 20–45° down-tilt</td><td>Camera angle is an accuracy lever you control for free (Section 06). Avoid straight-down ceiling views for now — they're the hard case for Re-ID.</td></tr>
+      <tr><td>GPU</td><td class="num">RTX 3060 12GB or any cloud GPU</td><td>Fine-tuning YOLOX-S at 640px and running 2-camera inference both fit easily. Rent an A10/T4 by the hour for training runs if your laptop has no GPU.</td></tr>
+      <tr><td>Floor plan</td><td class="num">a PNG + a tape measure</td><td>Sketch the room to scale (even in a drawing app), note meters-per-pixel. This image <em>is</em> your world coordinate system.</td></tr>
+      <tr><td>Clock sync</td><td class="num">NTP on everything</td><td>One line of config now saves you from the subtlest bug class in Section 07. Cameras, server, laptop — same time source.</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>Software skeleton — start from mantis's bones</h3>
+  <p>Before any ML: set up the project the way mantis does, because these choices are what let a two-person project stay sane for a year.</p>
+  <ul>
+    <li><strong>uv workspace, one lockfile, Python pinned</strong> — every machine and container resolves identical environments; drift fails loudly.</li>
+    <li><strong>License gates from day one</strong> — copy <span class="fref">scripts/check_licenses.py</span>, the pre-commit hook, and the CI job verbatim. Your ecosystem's most popular tools (Ultralytics YOLO, the boxmot tracker library) are AGPL — the gate physically prevents the mistake.</li>
+    <li><strong>The 1MB commit cap</strong> — weights and video never enter git; use DVC or object storage with a <em>shared</em> remote (mantis's one anti-pattern: its DVC remote is a path inside one developer's home directory).</li>
+    <li><strong>Two containers</strong> — a fat CUDA training image, a slim runtime image. Mantis's Dockerfiles are your templates, including the documented "don't let a dependency sync replace GPU torch with CPU torch" trap.</li>
+  </ul>
+
+  <div class="lesson">
+    <span class="tag">Do this first · simulate before you install</span>
+    <p>Steal mantis's smartest move (<span class="fref">metadata/synth.py</span>): before touching cameras, write a simulator that moves 10 dots around your floor-plan PNG with realistic walking speeds, "observes" them through two fake camera view-cones, and emits the exact JSON events of Section 08. Build the dashboard and cross-camera engine against the simulator — where ground truth is perfect and free — then swap in real cameras. Mantis built its whole UI on a synthetic drone orbit before real footage existed; you can build yours on synthetic shoppers.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 02 ================= -->
+<section id="data">
+  <p class="sec-eyebrow"><em>Section 02</em> · Fuel</p>
+  <h2>Data — what to find, use, and make</h2>
+
+  <p>Each of your three learned models eats different data. Here is the complete map — what exists publicly, what its license really permits, and what you must record yourself. The prototype/product split matters everywhere: <strong>research-licensed data is fine for learning and prototyping, and forbidden in the thing you sell.</strong> Mantis wrote that policy and forgot to enforce it; you will enforce it (Section 02.4).</p>
+
+  <h3>02.1 Detector data (images with person boxes)</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Dataset</th><th>What it is</th><th>License reality</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr><td>COCO (person class)</td><td>~64k images with people, everyday scenes</td><td><span class="pill ok">Permissive-ish</span> CC-BY annotations; images carry mixed Flickr licenses</td><td>Pretrained starting weights (YOLOX ships them, Apache-2.0)</td></tr>
+      <tr><td>CrowdHuman</td><td>15k images, ~340k people, heavy occlusion — literally "a busy mall" as a dataset</td><td><span class="pill warn">Research-only</span> (non-commercial)</td><td>THE fine-tune for crowded indoor detection — prototype only</td></tr>
+      <tr><td>MOT17 / MOT20</td><td>Pedestrian tracking videos (MOT20 = dense crowds)</td><td><span class="pill warn">CC BY-NC-SA</span> non-commercial</td><td>Tracker tuning + evaluation, not detector training</td></tr>
+      <tr><td>WILDTRACK</td><td>7 overlapping cameras, one square, calibrated</td><td><span class="pill warn">Research-only</span></td><td>Studying overlapping-camera fusion (Section 06)</td></tr>
+      <tr><td>Your own footage</td><td>Your exact cameras, lighting, angles</td><td><span class="pill ok">Yours</span> (with GDPR duties — signage, DPIA, retention)</td><td>Fine-tuning + all evaluation. The most valuable data you will ever have</td></tr>
+      <tr><td>Synthetic (you generate)</td><td>Game-engine people with free perfect labels</td><td><span class="pill ok">Yours</span></td><td>The clean path to shippable weights (below)</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>02.2 Re-ID data (same person, many views)</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Dataset</th><th>What it is</th><th>License reality</th><th>Use it for</th></tr></thead>
+    <tbody>
+      <tr><td>Market-1501</td><td>1,501 identities, 6 cameras, the classic benchmark</td><td><span class="pill warn">Research-only</span></td><td>Pretrained OSNet weights exist for it; sanity-check your matching math</td></tr>
+      <tr><td>MSMT17</td><td>4,101 identities, 15 cameras, indoor+outdoor — the big modern one</td><td><span class="pill warn">Research-only</span>, signed agreement</td><td>Prototype embedder evaluation</td></tr>
+      <tr><td>DukeMTMC-reID</td><td>—</td><td><span class="pill crit">Withdrawn</span> over consent — do not use, even for prototypes</td><td>A lesson, not a dataset</td></tr>
+      <tr><td>Synthetic Re-ID (RandPerson / UnrealPerson-style)</td><td>Thousands of generated identities in varied clothing/lighting</td><td><span class="pill ok">Reproducible pipelines</span> — generate your own = yours</td><td>Clean-provenance embedder pretraining</td></tr>
+      <tr><td><strong>Self-harvested pairs</strong> (the trick below)</td><td>Crops your own tracker produces</td><td><span class="pill ok">Yours</span></td><td>Fine-tuning the embedder to your exact cameras — the step that matters most</td></tr>
+    </tbody>
+  </table></div>
+
+  <div class="lesson">
+    <span class="tag">The self-bootstrapping trick — your tracker manufactures your Re-ID data</span>
+    <p>Re-ID training needs pairs of crops known to be the same person. Once your single-camera tracker works (Section 04), it produces those <em>for free</em>: every confident track is one person photographed dozens of times across seconds — different poses, different distances, same identity. Harvest crops from long, clean tracks (drop occluded/tiny ones), treat each track as one identity, and you have a same-camera Re-ID training set from your own space with zero manual labeling. Cross-camera pairs still need a human to confirm — but now they're confirming candidates the system proposes, not labeling from scratch. This loop — <strong>tracker output becomes Re-ID training fuel becomes better cross-camera matching</strong> — is how the system improves itself after deployment.</p>
+  </div>
+
+  <h3>02.3 Your own footage — the recording &amp; labeling protocol</h3>
+  <p>Public data gets you to a working prototype. <em>Your</em> data gets you to a working product. The protocol:</p>
+  <ol>
+    <li><strong>Record deliberately, not randomly.</strong> From each camera: a quiet period, a busy period, and the hard cases — people crossing paths, sitting down, groups, the handoff zones between cameras. 10–15 minutes per camera per condition beats hours of empty corridor.</li>
+    <li><strong>Label with CVAT</strong> (open source, industry standard). For detection: draw person boxes on every ~10th frame; its interpolation fills between. Budget intuition: ~2,000–5,000 labeled boxes per camera angle is a meaningful fine-tune; a focused evening per camera.</li>
+    <li><strong>Decide the box convention now: full-extent boxes</strong> (estimate the whole person even when half-hidden), not visible-fragment boxes — trackers cope far better when the box keeps meaning "the whole person." Write it in your labeling guide; inconsistency here silently poisons tracking. (Mantis's adapters discarded every occlusion flag — you, indoors, cannot afford to.)</li>
+    <li><strong>Split per-sequence, never per-frame.</strong> Frames from one recording session stay together on one side of the train/eval split. This is the leakage lesson from the mantis review, now load-bearing: violate it and every number you compute lies to you.</li>
+    <li><strong>Build the golden eval clips</strong> (Section 09): 2–3 fully-labeled multi-camera clips, ~5 minutes each, where a human has tracked every person across every camera with consistent global IDs. Laborious (~a day of labeling per clip) and worth more than any benchmark — this is the yardstick every threshold in Sections 04–07 gets tuned against.</li>
+  </ol>
+
+  <h3>02.4 Provenance — do what mantis said, not what it did</h3>
+  <div class="repo-box">
+    <span class="tag">From the repo · the pattern, completed</span>
+    <p>Reuse the whole <span class="fref">mantis_data</span> machinery: adapters per dataset, the declarative class-mapping YAML, provenance stamped into every COCO file, dhash dedup, <code>commercial_use</code> most-restrictive-wins at merge. Then add the piece mantis documented but never wrote: <strong>the trainer refuses to start unless the dataset manifest's combined license status matches the run's declared tag</strong> (<code>research_full</code> vs <code>commercial_clean</code>). It's ~20 lines in the training entrypoint. Every model file you ever produce should carry its data lineage in its MLflow record — under GDPR, "what was this trained on?" is a question a regulator can ask you.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 03 ================= -->
+<section id="detector">
+  <p class="sec-eyebrow"><em>Section 03</em> · Model 1</p>
+  <h2>The person detector</h2>
+
+  <p>Job: one frame in → a list of <em>(box, "person", confidence)</em> out. No memory, no identity — it meets every frame as a stranger. Everything downstream depends on its quality, and no tracker can recover a person the detector never found, so <strong>recall is king</strong>: a missed person is worse than an occasional ghost (the tracker filters ghosts).</p>
+
+  <h3>What's actually inside</h3>
+  <p>YOLOX-S, like every modern detector, is three stages of learned convolutions: a <strong>backbone</strong> that turns pixels into feature maps (early layers detect edges, middle layers body parts, deep layers whole-person patterns), a <strong>neck</strong> that fuses coarse-but-smart deep features with fine-but-naive shallow ones (so it can find both near and far people), and a <strong>head</strong> that reads the fused features and emits, for each location on a grid, box coordinates + an objectness score + class scores. It's <em>anchor-free</em>: it predicts box centers and sizes directly. At inference your five steps are letterbox → forward pass → score = objectness × class → un-letterbox → NMS. You watched all five in the repo; they carry over byte-for-byte.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · reuse, with these exact changes</span>
+    <ul>
+      <li><strong>Keep:</strong> the whole <span class="fref">mantis_detector</span> package — config subclass pattern, MLflow wiring, per-source eval, ONNX export + parity check, the <span class="fref">inference.py</span> core. Keep <code>pixeltable-yolox</code> (Apache-2.0). Person is already class index 0.</li>
+      <li><strong>Change — classes:</strong> 9 → 1 (person). The head shrinks; the taxonomy YAML becomes trivial for now (it grows back when you add "staff uniform" or "stroller" later).</li>
+      <li><strong>Change — input size:</strong> 1280 → <span class="num">640</span> (or 960 for long corridors). Indoor people are 100–400px tall; mantis's 4× resolution tax bought small-object recall you don't need. This one change buys you ~4× more cameras per GPU.</li>
+      <li><strong>Change — starting weights:</strong> from-scratch → <strong>COCO-pretrained</strong> YOLOX-S. Mantis trained 300 epochs from random; you fine-tune from weights that already know what a person looks like, and converge in 30–60 epochs.</li>
+      <li><strong>Change — <code>max_labels</code>:</strong> 50 → <span class="num">150+</span>. The verified mantis bug: dense scenes silently lose ground truth past 50 boxes. A busy mall frame will exceed 50.</li>
+      <li><strong>Change — NMS threshold:</strong> 0.65 → <span class="num">0.7–0.75</span> and re-tune on crowd clips. In crowds, two real people overlap heavily; aggressive NMS deletes one of them. This is the classic "works in the demo, fails Saturday afternoon" knob.</li>
+    </ul>
+  </div>
+
+  <h3>What fine-tuning actually does</h3>
+  <p>Mechanically: each training step takes a batch of labeled images, runs the forward pass, and a <strong>loss function</strong> scores the wrongness — three terms added together: box-overlap loss (predicted boxes should align with true boxes, measured by IoU), objectness loss (grid cells with a person should say so), classification loss. Backpropagation computes, for all ~9 million weights, which direction reduces that loss, and nudges each a tiny step (the learning rate). Repeat over the dataset ~40 times (epochs). Fine-tuning is the same loop starting from pretrained weights with a ~10× smaller learning rate — you're adjusting a competent model to your domain, not teaching it vision. What you'll actually watch: the loss curve falling (MLflow plots it), and eval mAP on <em>your held-out camera clips</em> rising then plateauing — stop there; past the plateau it starts memorizing your training set (overfitting), which shows as train loss still falling while eval mAP degrades.</p>
+
+  <h3>Indoor-specific traps to engineer for</h3>
+  <ul>
+    <li><strong>The mannequin/poster/mirror trio</strong> — the classic mall false positives. Fix per camera with <strong>ignore masks</strong>: polygons over ad screens and mirrors where detections are discarded. (Mantis skipped applying ignore regions; you shouldn't.)</li>
+    <li><strong>Zero negatives problem</strong> — mantis's corpus contains no empty scenes, which teaches false confidence. Include empty-corridor frames from every camera in training.</li>
+    <li><strong>Evaluate per camera</strong> — reuse the per-source eval trick (<span class="fref">eval.py</span>): tag every image with its camera ID and slice mAP by camera. The dim car-park camera will be your weakest — you want to know that from a table, not a complaint.</li>
+  </ul>
+  <p><strong>Definition of done:</strong> person mAP@50 ≥ ~0.85 on your own labeled eval clips, per camera, at your chosen operating resolution — plus a subjective test: at conf 0.3, watching live output, it should almost never miss a clearly visible person for more than a frame or two.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 04 ================= -->
+<section id="tracker">
+  <p class="sec-eyebrow"><em>Section 04</em> · Model 2</p>
+  <h2>The tracker — boxes become people</h2>
+
+  <p>Job: consume each frame's anonymous boxes and link them over time, so "a person was here" becomes "<em>this</em> person, track 12, has been walking east for 40 seconds." It's not a neural network — it's an algorithm (with a tiny bit of learned help later), which is why you can tune it with thresholds instead of retraining.</p>
+
+  <h3>The machinery, concretely</h3>
+  <p>Use <strong>ByteTrack</strong> — the modern default, and pick an MIT-licensed implementation (the original ByteTrack repo, or the <code>supervision</code> library's port — <em>not</em> boxmot, which is AGPL like Ultralytics). Every processed frame, three things happen:</p>
+  <ol>
+    <li><strong>Predict.</strong> Each existing track has a <strong>Kalman filter</strong> — a running estimate of position, box size, and velocity, plus an uncertainty. It applies momentum: "track 12 was here moving 30px/frame east, so she should now be there." Uncertainty grows the longer since the last confirmed sighting. This is what lets a track <em>coast</em> through a pillar occlusion or the frames you skipped by sampling.</li>
+    <li><strong>Match.</strong> Build a cost matrix: every predicted track position × every fresh detection, scored by overlap (IoU). The <strong>Hungarian algorithm</strong> solves the best one-to-one assignment. ByteTrack's signature move is doing this <em>twice</em>: first pass matches confident detections (score &gt; ~0.5); the <strong>second pass matches the leftovers against low-confidence detections</strong> (score down to ~0.1) — because a half-occluded person's confidence drops but the weak box still exists, and that weak box is what keeps her track alive through the crowd. This one idea is most of ByteTrack's advantage, and it's why detector and tracker thresholds must be tuned together.</li>
+    <li><strong>Lifecycle.</strong> Unmatched detections become <em>tentative</em> tracks (confirmed only after ~3 consecutive hits — kills one-frame ghosts). Unmatched tracks go <em>lost</em> and coast for <code>track_buffer</code> frames before deletion; a reappearing detection within the buffer reclaims its old ID.</li>
+  </ol>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Knob</th><th>Start at</th><th>What it trades (indoor tuning notes)</th></tr></thead>
+    <tbody>
+      <tr><td><span class="m">track_thresh</span></td><td class="num">0.5</td><td>High/low confidence boundary for the two-pass match — tune jointly with detector conf</td></tr>
+      <tr><td><span class="m">match_thresh</span></td><td class="num">0.8</td><td>How loose an IoU match may be; looser survives jerky motion, risks swaps</td></tr>
+      <tr><td><span class="m">track_buffer</span></td><td class="num">30 → 60–90</td><td>Frames a lost track survives. Indoors, pillar/kiosk occlusions are long — raise it. Too high and a departed person's stale track hijacks a newcomer. <strong>Note: counted in <em>processed</em> frames</strong> — at 5fps sampling, 30 frames = 6 real seconds</td></tr>
+      <tr><td><span class="m">min_hits</span></td><td class="num">3</td><td>Consecutive sightings before a track is real — suppresses flicker ghosts</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>You do <em>not</em> need camera-motion compensation (BoT-SORT's addition) — that exists for drones; your cameras are bolted down. That's one of several ways your problem is easier than the aerial one.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · what this replaces and where it plugs in</span>
+    <p>This is the first thing mantis doesn't have. It slots directly after <span class="fref">Detector.infer()</span> in the per-frame loop of <span class="fref">tools/mantis_render.py</span> — detections in, <code>(track_id, box)</code> out — and the manifest schema gains one field: <code>track_id</code> per detection (bump the schema version, per the contract discipline). The browser tracker <span class="fref">web/src/tracks.ts</span> then retires; the dashboard's marker pool re-keys onto real server-side IDs. Convenient omen: mantis's eval already runs at conf 0.01 — the same low-confidence boxes ByteTrack's second pass feeds on are already flowing through the pipeline.</p>
+  </div>
+
+  <h3>Debugging vocabulary — how tracking fails</h3>
+  <p>Two named failure modes, and a fixed diagnosis order. An <strong>ID switch</strong>: two people cross, identities swap — silently catastrophic for a guard following someone. <strong>Fragmentation</strong>: one person accumulates many IDs, each occlusion birthing a new one — inflates counts, shatters paths. When either happens, diagnose in this order: (1) is the detector missing frames? (no tracker fixes bad detection); (2) are occlusions outlasting <code>track_buffer</code>?; (3) is NMS deleting one of two overlapping people?; (4) only then blame the matcher. <strong>Definition of done:</strong> IDF1 ≥ ~0.75 on your labeled single-camera eval clips (Section 09), and a person can walk behind the pillar and come out the other side with the same ID.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 05 ================= -->
+<section id="reid">
+  <p class="sec-eyebrow"><em>Section 05</em> · Model 3</p>
+  <h2>The Re-ID embedder — appearance as a number</h2>
+
+  <p>Job: person crop in → vector of 512 numbers out, engineered so that <strong>two crops of the same person land close together and crops of different people land far apart</strong> — across cameras, angles, and lighting. It is not face recognition; it never uses the face (CCTV faces are too few pixels anyway). It keys on whole-body gestalt: clothing colors, silhouette, bag, hair. Closeness is <strong>cosine similarity</strong> — near 1.0 = almost certainly the same person, and cross-camera matching becomes nearest-neighbor search over these vectors. This anonymous-appearance choice is also your legal keel: session-scoped body matching sits in a workable GDPR/AI-Act position; face-ID against named databases does not (your overview guide, Part 9).</p>
+
+  <h3>Architecture and training, at the depth you need</h3>
+  <p>Use <strong>OSNet</strong> (via the MIT-licensed <code>torchreid</code> library) — designed specifically for Re-ID, and cheap enough to run on live streams. Its idea: identity lives at many scales at once (overall silhouette <em>and</em> a small logo <em>and</em> shoe color), so each block processes several receptive-field sizes in parallel and learns to weight them. How such a model is trained tells you where it fails: <strong>triplet loss</strong> shows it an anchor crop, a positive (same person), and a negative (different person), and pushes the anchor closer to the positive than the negative by a margin — millions of times, with <strong>batch-hard mining</strong> deliberately selecting the most confusable cases, plus <strong>random erasing</strong> (blanking patches to simulate occlusion). Consequence: the model can only separate what its training data forced it to separate. Twenty teenagers in identical black hoodies were never in Market-1501 — <em>your mall will provide them</em>. That is why Section 07 refuses to let appearance work alone, and why fine-tuning on your own cameras (with the self-harvested pairs from Section 02) is not optional for production quality.</p>
+
+  <div class="warn-box">
+    <span class="tag">Provenance warning · pretrained Re-ID weights are research-tainted</span>
+    <p>Every downloadable OSNet checkpoint was trained on Market-1501/MSMT17 — research-only data. Fine for your prototype; not shippable. Your clean path for the product: pretrain on synthetic identities you generate + fine-tune on your own consented footage, tracked by the provenance tags of Section 02.4. Budget for this now so it isn't a crisis later.</p>
+  </div>
+
+  <h3>From frames to signatures — the tracklet is the atom</h3>
+  <p>Never match on a single frame's embedding — any one frame can be blurred, mid-stride, half-occluded. Instead maintain a <strong>track-level template</strong>: for each healthy track, embed only the decent crops (gates: box height ≥ ~80px, not flagged occluded, not at frame edge) and fold them into a running average — an <strong>EMA</strong>, <code>template ← 0.9·template + 0.1·new</code> — which stays stable while adapting as the person turns or walks into shade. The unit that flows to Section 07 is a <strong>tracklet</strong>: (camera, track ID, time span, floor-plan path, aggregated signature, quality score). A tracklet built from 60 clean frames deserves trust; one built from 2 blurry frames doesn't — carry that quality number and use it.</p>
+
+  <h3>The threshold — your product's central dial</h3>
+  <p>One number decides whether two tracklets are "the same person": the cosine-similarity cutoff. Too high → the same person under new lighting fails to match → <strong>fragmentation</strong> (one human becomes five dots; phantom crowds). Too low → look-alikes merge → <strong>collision</strong> (the guard follows dot #47 and it's sometimes a stranger — silent and dangerous). There is no universal value. The tuning procedure: from your golden clips, collect a few hundred labeled tracklet pairs (same/different), plot match-rate vs error-rate as you sweep the threshold, and pick the operating point — <em>per camera pair</em>, because the dim corridor→lift handoff needs a different cutoff than two bright adjacent cameras. Expect values in the 0.5–0.7 range with OSNet; expect to re-tune after any embedder change.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 06 ================= -->
+<section id="geometry">
+  <p class="sec-eyebrow"><em>Section 06</em> · The spatial substrate</p>
+  <h2>The geometry layer — every camera onto one map</h2>
+
+  <p>Job: convert "pixel (612, 480) in camera 3" into "floor-plan point (42.3m, 17.8m)". Because your cameras are fixed and your floor is flat, this is <em>exact math done once</em>, not a learned model — the one part of the system that either works or has a diagnosable error.</p>
+
+  <h3>Calibrating one camera — the actual procedure</h3>
+  <ol>
+    <li><strong>Undistort first.</strong> Wide-angle CCTV lenses bend straight lines. Print a checkerboard, wave it through ~20 frames, run OpenCV's calibration to get the distortion model, and undistort every frame from then on. Skipping this makes step 3 accurate in the center and wrong at the edges — exactly where handoffs happen. (Fisheye/dome cameras need the dedicated fisheye model — flag them early.)</li>
+    <li><strong>Collect correspondences.</strong> Find ≥8 points visible in the camera whose floor-plan positions you know: tile corners (a tiled floor is a free calibration grid), doorway edges, pillar bases. Click each in the camera image; click its twin on the floor-plan PNG.</li>
+    <li><strong>Fit the homography</strong> — <code>cv2.findHomography(..., RANSAC)</code> returns the 3×3 matrix mapping any floor pixel to floor-plan coordinates. RANSAC discards your one fat-fingered click. Store the matrix; it's valid until someone physically moves the camera.</li>
+    <li><strong>Verify by round trip.</strong> Project 3–4 held-out floor marks through the matrix; error should be well under 0.5m. Then automate it: re-check nightly and alert on drift — a free "did a ladder bump camera 6?" alarm. (This is mantis's forward/inverse round-trip test pattern, redeployed.)</li>
+  </ol>
+  <p>At runtime, project each person's <strong>foot point</strong> — bottom-center of the box — because homographies are only exact for points <em>on</em> the floor plane. Occluded feet (a counter, another person) put the mapped point too far away; the upgrade path when this bites is ankle keypoints from a pose model. And the mantis error-budget lesson holds: the guard needs "which corridor," so <strong>a meter of accuracy is success</strong> — spend effort on foot points and calibration, not sub-pixel heroics.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · same slot, better math — and the calibration UX</span>
+    <p><span class="fref">geolocate.py</span> approximates pixel→world from moving-drone telemetry; your homography <em>replaces its math but keeps its slot</em> in the pipeline and its manifest field (<code>geo</code> becomes <code>floor_xy</code>). Meanwhile <span class="fref">CalibrationPanel.tsx</span> + <span class="fref">geo.ts</span> is your calibration UX blueprint: sliders warp the projected dots live, operator nudges until dots sit in the right corridor, correction saved as data. Rebuild it as a "drag the corner points" homography touch-up per camera. And <span class="fref">MapView.tsx</span> carries over almost intact — Leaflet's <code>CRS.Simple</code> mode renders your floor-plan PNG with meter coordinates instead of world tiles; the marker pool keeps the dots gliding.</p>
+  </div>
+
+  <h3>Two structures beyond single-camera calibration</h3>
+  <ul>
+    <li><strong>Overlap fusion.</strong> Where two cameras see the same floor, the same person projects to (nearly) the same map point from both — fuse points within a tolerance radius (~0.5–1m; tune on overlap footage). In overlap zones <strong>geometry leads and appearance rests</strong>: it's the reliable regime. Map which of your camera pairs overlap; you now know in advance where handoffs will be rock-solid vs where they'll lean on Re-ID.</li>
+    <li><strong>The topology graph.</strong> For non-overlapping pairs: which camera exits connect to which entries, and how long the walk takes. Author it by hand first — floor plan + stopwatch, an afternoon's work — as a distribution per ordered pair ("cam 3 east edge → cam 7: 8–15s, never &lt;5s"). Later, learn it from data: log actual gaps of high-confidence matches and let the distributions sharpen themselves. This unglamorous graph delivers more cross-camera accuracy per hour invested than anything else in the system.</li>
+  </ul>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 07 ================= -->
+<section id="fusion">
+  <p class="sec-eyebrow"><em>Section 07</em> · Model 4 — the core IP</p>
+  <h2>The cross-camera engine — one human, one ID</h2>
+
+  <p>Job: take every camera's tracklets and partition them into groups — one group per real human — assigning each group a <strong>global ID</strong>. This is the piece that makes twenty screens into one dashboard, the hardest thing you'll build, and the part with no library to install. It's also where beginners make one specific wrong turn, so let's name it.</p>
+
+  <h3>Not a lookup — a clustering problem under physics</h3>
+  <p>The naive design — "new tracklet appears, find its nearest gallery signature, assign that ID" — is greedy: early mistakes lock in and cascade. The correct frame: over a sliding window (say the last 30–60 seconds), collect all tracklets from all cameras, build a graph where <strong>edges score the likelihood two tracklets are the same person</strong>, and cluster the graph — merging the closest pair repeatedly, refusing merges that violate constraints — so the whole window resolves <em>jointly</em>. If tracklets P, Q, R all look alike, joint resolution can see that R is Q's better match before greedily marrying P to Q.</p>
+
+  <h3>The edge score — physics gates, appearance disambiguates</h3>
+  <p>Each candidate edge is scored in a strict order:</p>
+  <ol>
+    <li><strong>Hard gates first (kill switches).</strong> Same-camera-same-time → impossible (a person isn't in two places; also the <em>cannot-link</em> constraint inside clustering). No topology path → impossible. Transit time outside the pair's distribution (too fast = teleporting) → impossible. Edge weight zero, <em>regardless of appearance</em>.</li>
+    <li><strong>Space-time plausibility.</strong> Observed gap scored against the transition distribution — 11 seconds on an 8–15s corridor scores high; 40 seconds scores low but nonzero (they may have lingered in the blind gap).</li>
+    <li><strong>Appearance.</strong> Cosine similarity of the tracklet templates (Section 05), thresholded per camera pair.</li>
+    <li><strong>Motion continuity.</strong> Exit velocity should roughly aim at the entry point; exiting left and appearing from the wrong side scores down.</li>
+    <li><strong>Fuse</strong> — a weighted sum works to start (roughly: appearance 50%, space-time 35%, motion 15%; a small learned model later). Merge clusters greedily-highest-first while no constraint breaks; anything unmatched enrolls as a <strong>new global ID</strong> — the open-world default, since most new tracklets are genuinely new people.</li>
+  </ol>
+  <p>This ordering is what defeats the black-hoodie problem: of twenty identical hoodies, physics admits only the two who were in the right place at the right time — appearance only has to pick between <em>those</em>.</p>
+
+  <h3>Global ID lifecycle — the state you must manage</h3>
+  <p>The engine holds the live gallery: global ID → member tracklets, current best signature, last-seen time and place. Two dials rule it: <strong>expiry</strong> (drop IDs unseen for ~5–10 minutes — too short and a returning lingerer becomes a new person; too long and stale signatures hijack newcomers — the track_buffer trade at building scale) and the <strong>match threshold</strong> (Section 05's fragmentation-vs-collision dial, now global). Then three systems truths from your deep-dive guide, which become real the week you go multi-machine: fuse by <em>timestamps</em>, never arrival order (events arrive late and out of order — buffer a few seconds and reason by time); clock skew silently corrupts every transit-time gate (NTP discipline, Section 01); and log every merge decision with its evidence, because when a guard asks "why did the dot jump?", you want an answer, not a shrug.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · the join you already understand</span>
+    <p>The mechanism at this engine's heart — match events across streams by nearest timestamp within a tolerance, degrade honestly when nothing qualifies — is exactly <span class="fref">PoseTrack.nearest()</span> from <span class="fref">metadata/read.py</span>, generalized. Mantis joined video-to-telemetry; you join camera-to-camera. Same discipline, same failure modes, same fix.</p>
+  </div>
+
+  <p><strong>Definition of done:</strong> on your golden multi-camera clips, cross-camera IDF1 climbing past ~0.6–0.7, and the qualitative bar: a colleague walks a loop through all cameras and stays one dot ≥8 times out of 10.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 08 ================= -->
+<section id="live">
+  <p class="sec-eyebrow"><em>Section 08</em> · Systems</p>
+  <h2>The live system &amp; dashboard</h2>
+
+  <p>Mantis is upload → batch → playback. Your product is <em>live</em>, which changes the architecture more than any model choice. Build it in two shapes:</p>
+
+  <h3>v1 — the honest monolith (2–6 cameras, one box)</h3>
+  <p>One Python service. Per camera, a small pipeline: <strong>decode</strong> the RTSP stream (OpenCV first; GStreamer when you outgrow it) → <strong>sample</strong> ~5fps for detection while the tracker's Kalman coasting keeps motion smooth between — this single decision cuts compute ~5× and is why one GPU serves many cameras → <strong>detect</strong>, batching one frame from each camera into a single GPU forward pass (batching multiplies throughput; a brief wait to fill the batch is fine when "live" means ~1 second) → <strong>track</strong> per camera on CPU → <strong>embed</strong> new/updated tracklets → <strong>project</strong> foot points through homographies → hand tracklets to the in-process <strong>fusion engine</strong> → <strong>push</strong> events to the dashboard over a WebSocket. No message bus yet; a bus at 4 cameras is architecture cosplay.</p>
+
+  <p>The event replaces the manifest — same contract discipline, now streaming. Per tracklet update: <code>{ts, camera, track_id, global_id, box, floor_xy, conf}</code>. Version it, write its invariants down (e.g. "no calibration ⟹ floor_xy null, box still present" — mantis's null-discipline, verbatim), keep the UI a pure consumer.</p>
+
+  <div class="repo-box">
+    <span class="tag">From the repo · dashboard patterns that survive contact</span>
+    <p>Four <span class="fref">web/src/</span> patterns carry straight over: the <strong>one-clock rule</strong> (every panel renders from a single time index — for live, "now minus ~1s"; the same binary-search lookup powers instant replay scrubbing, a feature guards will love); the <strong>marker pool</strong> keyed by global ID (dots glide, never flicker); <strong>Leaflet CRS.Simple</strong> over your floor-plan PNG; and <strong>graceful degradation</strong> (mantis's UI runs with no backend at all — yours should drop to per-camera mode when fusion dies, not go dark). Replace: 1.5s polling → WebSocket push; the single-worker job queue → always-on per-camera pipelines.</p>
+  </div>
+
+  <h3>v2 — the scaling shape (10–20+ cameras)</h3>
+  <p>When one box runs out: move per-camera work (decode/detect/track/embed) to <strong>edge boxes</strong> (Jetson-class) that send only tracklets + embeddings — kilobytes, not video — to a central fusion server, with a message bus between (NATS or Valkey — both permissively licensed; note Redis itself moved to a restrictive license, your license gate will tell you). This is also the privacy-shaped architecture: raw pixels never leave the camera's corner of the building. Watch the unglamorous ceilings from your deep-dive §C: GPU <em>decode</em> sessions run out before compute does; <strong>backpressure</strong> means dropping frames under crowd spikes instead of growing queues until 3 a.m. crashes; and dashboard your own health (per-stream fps, queue depths, fusion latency) next to the people-dots. Latency budget end-to-end: decode+sample ~50ms, batched detect ~30ms, track/embed ~30ms, fusion window ~200–500ms, push+render ~100ms — comfortably under the ~1–2s that "live" means for a guard.</p>
+
+  <div class="warn-box">
+    <span class="tag">Product reality · what mantis's demo teaches by omission</span>
+    <p>Mantis has no auth on any endpoint, jobs vanish on restart, and its "LIVE" badge is a playing-video indicator. For a security product: authentication and role-based access from v1, audit logs of who viewed what (a GDPR expectation), automatic retention deletion (raw video days; derived tracks less), and camera-down alerting — a blind camera is itself a security event. None of this is exotic; all of it is the difference between demo and deployment.</p>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 09 ================= -->
+<section id="eval">
+  <p class="sec-eyebrow"><em>Section 09</em> · Truth</p>
+  <h2>Evaluation — how you know it works</h2>
+
+  <p>Every component gets its own metric, measured on <strong>your own labeled footage</strong> — public leaderboard numbers describe their cameras, not yours. The golden clips from Section 02 are the asset everything tunes against; budget real time for them.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Component</th><th>Metric</th><th>What it means</th><th>Target on own clips</th></tr></thead>
+    <tbody>
+      <tr><td>Detector</td><td class="num">mAP@50, recall · per camera</td><td>Of real people, how many found; of found, how many real</td><td class="num">≥ 0.85 mAP@50</td></tr>
+      <tr><td>Tracker</td><td class="num">IDF1 (also HOTA)</td><td>Fraction of time each person carries their one correct ID — the identity metric; MOTA exists but is detection-dominated</td><td class="num">≥ 0.75 single-cam</td></tr>
+      <tr><td>Re-ID</td><td class="num">pair ROC / rank-1</td><td>Same/different-person pairs correctly split at your threshold</td><td class="num">≥ 0.9 pair accuracy</td></tr>
+      <tr><td>Cross-camera</td><td class="num">cross-camera IDF1</td><td>Same measure, global IDs across all cameras — the product metric</td><td class="num">0.6–0.7 and climbing</td></tr>
+      <tr><td>Live system</td><td class="num">end-to-end latency · uptime · fps/stream</td><td>Systems health — dashboarded next to the dots</td><td class="num">&lt; 2 s · soak-tested days</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>Tooling: <strong>TrackEval</strong> (MIT) computes IDF1/HOTA from your labels. Practices to keep: evaluate <em>per camera</em> and <em>per condition</em> (busy vs quiet — the Saturday number is the honest one); check <strong>demographic slices</strong> (children, wheelchair users, uniformed staff — training data is uneven and differential error in a security product is an ethics and legal issue, not a footnote); and re-run the golden clips after <em>every</em> threshold change — the dials interact, and yesterday's tuning can silently rot.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 10 ================= -->
+<section id="plan">
+  <p class="sec-eyebrow"><em>Section 10</em> · Sequence</p>
+  <h2>The build plan — M0 to M7</h2>
+  <p>Each milestone is independently demo-able and consumes specific sections above. Rough effort assumes you directing + AI pair-programmer building, part-time.</p>
+
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Milestone</th><th>Definition of done</th><th>Uses</th><th>Effort</th></tr></thead>
+    <tbody>
+      <tr><td><b>M0</b> · Skeleton + simulator</td><td>Repo with mantis's discipline layer; simulated people on your floor plan driving a live dashboard</td><td class="num">§01, 08</td><td class="num">1–2 wks</td></tr>
+      <tr><td><b>M1</b> · Detector on your camera</td><td>Pretrained YOLOX-S person detection live on one camera; conf/NMS understood by feel</td><td class="num">§03</td><td class="num">1 wk</td></tr>
+      <tr><td><b>M2</b> · Real tracking</td><td>ByteTrack server-side; IDs survive the pillar test; tracks.ts retired</td><td class="num">§04</td><td class="num">1–2 wks</td></tr>
+      <tr><td><b>M3</b> · On the map</td><td>Camera calibrated (homography), dots on floor plan, calibration touch-up UI</td><td class="num">§06, 08</td><td class="num">1–2 wks</td></tr>
+      <tr><td><b>M4</b> · Fine-tuned + measured</td><td>Own footage labeled; detector fine-tuned; golden clip #1; per-camera eval table</td><td class="num">§02, 03, 09</td><td class="num">2–3 wks</td></tr>
+      <tr><td><b>M5</b> · Second camera, overlap</td><td>Two calibrated cameras; geometric fusion in the overlap zone; one dot where views share floor</td><td class="num">§06</td><td class="num">1–2 wks</td></tr>
+      <tr><td><b>M6</b> · The real thing — blind-gap handoff</td><td>Non-overlapping pair: Re-ID templates + topology gates + clustering engine; loop-walk test passes ≥8/10; cross-camera IDF1 on golden clips</td><td class="num">§05, 07, 09</td><td class="num">4–8 wks — the hard one</td></tr>
+      <tr><td><b>M7</b> · Harden toward pilot</td><td>4–6 cameras, auth, retention, health dashboard, soak test, GDPR paperwork (DPIA) drafted</td><td class="num">§08, 09</td><td class="num">ongoing</td></tr>
+    </tbody>
+  </table></div>
+
+  <p>The demo that impresses is M5. The thing that is genuinely hard, defensible, and <em>yours</em> is M6 — anyone can wire cameras to one screen; making identities correct across the blind gaps is the product. Budget accordingly, and don't let M7 polish steal time from M6 correctness.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ================= 11 ================= -->
+<section id="dials">
+  <p class="sec-eyebrow"><em>Section 11</em> · Reference</p>
+  <h2>Master dials &amp; the kit list</h2>
+
+  <h3>Every knob in the system, one table</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Dial</th><th>Component</th><th>Start</th><th>The trade it controls</th></tr></thead>
+    <tbody>
+      <tr><td>conf threshold</td><td class="num">detector</td><td class="num">0.3 display / low for tracker</td><td>missed people vs ghost boxes</td></tr>
+      <tr><td>NMS IoU</td><td class="num">detector</td><td class="num">0.7</td><td>crowd survival vs duplicate boxes</td></tr>
+      <tr><td>input size</td><td class="num">detector</td><td class="num">640–960</td><td>small/far-person recall vs cameras-per-GPU</td></tr>
+      <tr><td>track_thresh / match_thresh</td><td class="num">tracker</td><td class="num">0.5 / 0.8</td><td>two-pass boundary · match looseness</td></tr>
+      <tr><td>track_buffer</td><td class="num">tracker</td><td class="num">60–90 proc. frames</td><td>occlusion survival vs stale-ID hijack</td></tr>
+      <tr><td>crop quality gates</td><td class="num">re-id</td><td class="num">≥80px, unoccluded</td><td>template purity vs template coverage</td></tr>
+      <tr><td>EMA α</td><td class="num">re-id</td><td class="num">0.9</td><td>template stability vs adaptation speed</td></tr>
+      <tr><td>similarity threshold</td><td class="num">re-id / fusion</td><td class="num">tune per camera pair</td><td><strong>fragmentation vs collision — the master dial</strong></td></tr>
+      <tr><td>transit-time windows</td><td class="num">fusion</td><td class="num">stopwatch, then learned</td><td>physics gate strictness — kills look-alike confusion</td></tr>
+      <tr><td>fusion weights</td><td class="num">fusion</td><td class="num">~50/35/15</td><td>appearance vs space-time vs motion say</td></tr>
+      <tr><td>window length</td><td class="num">fusion</td><td class="num">30–60 s</td><td>global consistency vs decision latency</td></tr>
+      <tr><td>gallery expiry</td><td class="num">fusion</td><td class="num">5–10 min</td><td>returning lingerers vs signature staleness</td></tr>
+      <tr><td>overlap fuse radius</td><td class="num">geometry</td><td class="num">0.5–1 m</td><td>double-counting vs merging neighbors</td></tr>
+      <tr><td>detection sample rate</td><td class="num">live</td><td class="num">5 fps/cam, adaptive</td><td>compute cost vs track smoothness — biggest lever</td></tr>
+      <tr><td>batch size across cams</td><td class="num">live</td><td class="num">= camera count</td><td>GPU throughput vs a few ms latency</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The kit list — with the licenses checked</h3>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Need</th><th>Use</th><th>License</th><th>Avoid</th></tr></thead>
+    <tbody>
+      <tr><td>Detector</td><td class="num">pixeltable-yolox (as mantis)</td><td><span class="pill ok">Apache-2.0</span></td><td>Ultralytics YOLO — <span class="pill crit">AGPL</span></td></tr>
+      <tr><td>Tracker</td><td class="num">ByteTrack original / supervision</td><td><span class="pill ok">MIT</span></td><td>boxmot — <span class="pill crit">AGPL</span></td></tr>
+      <tr><td>Re-ID</td><td class="num">torchreid (OSNet)</td><td><span class="pill ok">MIT</span></td><td>shipping its research-trained weights</td></tr>
+      <tr><td>Geometry / video</td><td class="num">OpenCV; GStreamer at scale</td><td><span class="pill ok">Apache-2.0 / LGPL</span></td><td>—</td></tr>
+      <tr><td>Labeling · tracking eval</td><td class="num">CVAT · TrackEval</td><td><span class="pill ok">MIT</span></td><td>—</td></tr>
+      <tr><td>Dashboard</td><td class="num">React + Leaflet CRS.Simple (as mantis)</td><td><span class="pill ok">MIT / BSD-2</span></td><td>react-leaflet — <span class="pill warn">Hippocratic</span></td></tr>
+      <tr><td>Backend · bus (v2)</td><td class="num">FastAPI · NATS or Valkey</td><td><span class="pill ok">MIT / Apache / BSD</span></td><td>Redis ≥7.4 — <span class="pill warn">restrictive</span></td></tr>
+      <tr><td>Experiment tracking</td><td class="num">MLflow (as mantis) + real provenance tags</td><td><span class="pill ok">Apache-2.0</span></td><td>skipping the provenance enforcement</td></tr>
+    </tbody>
+  </table></div>
+
+  <p style="margin-top:34px">That's the whole machine, square one to live dashboard. The order of operations is the manual's real thesis: <strong>substrate first</strong> (lab, data discipline, detector), <strong>identity second</strong> (tracker, Re-ID, fusion — where the product's value and difficulty both live), <strong>hardening last</strong>. Your two guides remain the theory companion for Sections 04–08; "Mantis, Decoded" remains the worked example for Sections 01–03 and 06. When you're ready to start M0, say so — the skeleton and the simulator are an afternoon's work to scaffold.</p>
+</section>
+
+<footer>
+  <span>URBAN MTMC BUILDER'S MANUAL · VOL. 2 · 2026-07-02</span>
+  <span>COMPANION: MANTIS, DECODED</span>
+</footer>
+
+</div>
