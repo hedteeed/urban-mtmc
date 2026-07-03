@@ -7,8 +7,10 @@ placeholder lives only in a pytest tmpdir.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import shutil
+import time
 from pathlib import Path
 
 import pytest
@@ -123,3 +125,114 @@ def test_sim_is_shared_and_survives_disconnect(tmp_root: Path) -> None:
         with client.websocket_connect("/ws") as ws:
             second_ts = json.loads(ws.receive_text())["ts_s"]
     assert second_ts > first_ts
+
+
+# ---------------------------------------------------------------------------
+# M1: --source camera mode (CONTRACT.md §M1 additions)
+# ---------------------------------------------------------------------------
+
+
+class StubCameraWorker:
+    """CameraWorkerLike stand-in: an endless supply of canned batches.
+
+    No thread, no cv2, no detector — start/stop only record the lifecycle
+    calls the server is contractually required to make.
+    """
+
+    camera_id = "live0"
+
+    def __init__(self) -> None:
+        self.started = False
+        self.stopped = False
+        self.latest_jpeg = b"\xff\xd8-stub-jpeg-\xff\xd9"
+        self._n = 0
+
+    def start(self) -> None:
+        self.started = True
+
+    def stop(self) -> None:
+        self.stopped = True
+
+    def get_batch(self, timeout: float = 0.5) -> list[events.Observation] | None:
+        time.sleep(0.005)  # pace the drain loop like a real blocking queue
+        self._n += 1
+        ts = 0.25 * self._n  # 0.25 is binary-exact: survives round-tripping
+        return [
+            events.Observation(
+                ts_s=ts, camera=self.camera_id, track_id=2 * self._n,
+                floor_xy=None, conf=0.9, global_id=None,
+            ),
+            events.Observation(
+                ts_s=ts, camera=self.camera_id, track_id=2 * self._n + 1,
+                floor_xy=None, conf=0.5, global_id=None,
+            ),
+        ]
+
+
+def camera_app(tmp_root: Path, worker: StubCameraWorker):
+    return create_app(root=tmp_root, source="0", camera_worker_factory=lambda: worker)
+
+
+def test_api_source_sim_mode(tmp_root: Path) -> None:
+    client = TestClient(create_app(root=tmp_root, sim_factory=FakeSimulation))
+    resp = client.get("/api/source")
+    assert resp.status_code == 200
+    assert resp.json() == {"mode": "sim", "camera_id": None}
+
+
+def test_api_source_camera_mode(tmp_root: Path) -> None:
+    client = TestClient(camera_app(tmp_root, StubCameraWorker()))
+    resp = client.get("/api/source")
+    assert resp.status_code == 200
+    assert resp.json() == {"mode": "camera", "camera_id": "live0"}
+
+
+def test_video_mjpg_404_in_sim_mode(tmp_root: Path) -> None:
+    client = TestClient(create_app(root=tmp_root, sim_factory=FakeSimulation))
+    assert client.get("/video.mjpg").status_code == 404
+
+
+def test_video_mjpg_frames_carry_latest_jpeg_in_camera_mode(tmp_root: Path) -> None:
+    # The body is an INFINITE multipart stream, which TestClient would buffer
+    # forever — so probe the endpoint's StreamingResponse generator directly.
+    worker = StubCameraWorker()
+    app = camera_app(tmp_root, worker)
+    route = next(r for r in app.routes if getattr(r, "path", None) == "/video.mjpg")
+
+    async def probe() -> tuple[object, bytes]:
+        resp = await route.endpoint()
+        gen = resp.body_iterator
+        try:
+            chunk = await gen.__anext__()
+        finally:
+            await gen.aclose()
+        return resp, chunk
+
+    resp, chunk = asyncio.run(probe())
+    assert resp.media_type.startswith("multipart/x-mixed-replace; boundary=")
+    assert chunk.startswith(b"--")
+    assert b"Content-Type: image/jpeg" in chunk
+    assert worker.latest_jpeg in chunk
+
+
+def test_camera_mode_ws_delivers_tick_frame_and_worker_lifecycle(tmp_root: Path) -> None:
+    worker = StubCameraWorker()
+    with TestClient(camera_app(tmp_root, worker)) as client:
+        assert worker.started, "lifespan startup starts the worker"
+        assert not worker.stopped
+        with client.websocket_connect("/ws") as ws:
+            frame = json.loads(ws.receive_text())
+    assert worker.stopped, "lifespan shutdown stops the worker"
+
+    # Same wire shape as sim mode: consumers never branch on source.
+    assert set(frame) == {"type", "v", "ts_s", "observations"}
+    assert frame["type"] == "tick"
+    assert frame["v"] == events.SCHEMA_VERSION
+    assert frame["observations"]
+    assert frame["ts_s"] == frame["observations"][0]["ts_s"]
+    for obs in frame["observations"]:
+        assert set(obs) == {"ts_s", "camera", "track_id", "floor_xy", "conf", "global_id"}
+        assert obs["camera"] == "live0"
+        assert obs["floor_xy"] is None
+        assert obs["global_id"] is None
+        assert 0.0 <= obs["conf"] <= 1.0

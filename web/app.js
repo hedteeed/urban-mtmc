@@ -1,10 +1,12 @@
-/* URBAN-MTMC M0 dashboard — pure consumer of the schema-v1 event stream.
-   Contract: CONTRACT.md §web + src/mtmc/events.py. Plain ES6, canvas 2D,
-   zero external requests. Plan schema v2 (multi-floor): every floor renders
-   as its own to-scale panel; an observation's floor is derived from its
-   camera via the plan (events carry no floor field). Relies only on contract
-   fields: global_id may be null/absent; floor_xy may be null (observation
-   counted, dot skipped). */
+/* URBAN-MTMC M0/M1 dashboard — pure consumer of the schema-v1 event stream.
+   Contract: CONTRACT.md §web + §M1 + src/mtmc/events.py. Plain ES6, canvas
+   2D, zero external requests. Plan schema v2 (multi-floor): every floor
+   renders as its own to-scale panel; an observation's floor is derived from
+   its camera via the plan (events carry no floor field). Relies only on
+   contract fields: global_id may be null/absent; floor_xy may be null
+   (observation counted, dot skipped). M1: /api/source drives presentation
+   chrome only (badge, MJPEG camera strip, LIVE sidebar row) — the tick
+   ingest path never branches on source. */
 "use strict";
 
 (() => {
@@ -31,9 +33,14 @@
   const ctx = canvas.getContext("2d");
   const elChip = document.getElementById("chip");
   const elClock = document.getElementById("clock");
+  const elClockLabel = document.getElementById("clock-label");
   const elRate = document.getElementById("rate");
   const elTotal = document.getElementById("total");
   const elCams = document.getElementById("cams");
+  const elBadge = document.getElementById("badge");
+  const elCamStrip = document.getElementById("camstrip");
+  const elCamImg = document.getElementById("camimg");
+  const elCamLabel = document.getElementById("camlabel");
 
   // ---- state --------------------------------------------------------------
   let plan = null;
@@ -46,6 +53,9 @@
   const camColor = new Map(); // camera id -> palette color
   const camCountEls = new Map();
   const markers = new Map();  // "camera:track_id" -> marker (the pool)
+  const noGeo = new Map();    // "camera:track_id" -> {camera, lastTs} for
+                              // tracklets WITHOUT a dot (floor_xy null, or
+                              // camera not in plan) — counted, never drawn
   const seenKeys = new Set(); // every (camera, track_id) ever observed
   const gtPaths = new Map();  // global_id -> [{x, y, t}] true recent path
   const gtColors = new Map();
@@ -55,6 +65,9 @@
   let mouse = null;           // {x, y} CSS px or null
   let lastFrameMs = 0;
   let lastStatsMs = 0;
+  let sourceMode = "sim";     // /api/source — presentation chrome only
+  let liveCamId = null;       // camera_id from /api/source in camera mode
+  let camRetryTimer = null;   // pending MJPEG <img> retry, or null
 
   // world metres -> canvas CSS px, in a given floor's view transform
   const fx = (v, wx) => v.ox + wx * v.scale;
@@ -294,9 +307,20 @@
       return;
     }
     ws.onopen = () => {
+      const wasDown = everConnected; // reopen after a drop = possible restart
       everConnected = true;
       retryMs = 500;
       setChip("LIVE", true);
+      if (wasDown) {
+        // A restarted server is a NEW run: the shared clock (invariant 1)
+        // restarts near 0. Stale large timestamps would make prune() eat
+        // every fresh tracklet until the clock caught up — reset instead.
+        markers.clear();
+        noGeo.clear();
+        gtPaths.clear();
+        latestTs = 0;
+        refreshCamStream(); // the old MJPEG socket may be dead but silent
+      }
     };
     ws.onmessage = (e) => {
       let msg;
@@ -320,11 +344,15 @@
       if (!o || typeof o.camera !== "string" || typeof o.track_id !== "number") continue;
       const key = o.camera + ":" + o.track_id;
       seenKeys.add(key);
-      if (!Array.isArray(o.floor_xy)) continue; // invariant 3: no geometry -> no dot
-      const floor = camFloor.get(o.camera);     // invariant 3: floor derives from camera
-      if (floor === undefined) continue;        // camera not in plan -> no panel to route to
-      const wx = o.floor_xy[0], wy = o.floor_xy[1];
       const ts = typeof o.ts_s === "number" ? o.ts_s : latestTs;
+      const floor = camFloor.get(o.camera);     // invariant 3: floor derives from camera
+      if (!Array.isArray(o.floor_xy)           // invariant 3: no geometry -> no dot
+          || floor === undefined) {            // not in plan -> no panel to route to
+        noGeo.set(key, { camera: o.camera, lastTs: ts }); // still ACTIVE for counts
+        continue;
+      }
+      noGeo.delete(key); // gained geometry: its marker now carries the count
+      const wx = o.floor_xy[0], wy = o.floor_xy[1];
       let m = markers.get(key);
       if (!m) {
         m = { camera: o.camera, floor, trackId: o.track_id, globalId: null,
@@ -365,6 +393,9 @@
     for (const [key, m] of markers) {
       if (latestTs - m.lastTs > STALE_S) { markers.delete(key); continue; }
       while (m.trail.length && latestTs - m.trail[0].t > TRAIL_S) m.trail.shift();
+    }
+    for (const [key, e] of noGeo) {
+      if (latestTs - e.lastTs > STALE_S) noGeo.delete(key); // same lifetime as dots
     }
     for (const [gid, path] of gtPaths) {
       while (path.length && latestTs - path[0].t > GT_PATH_S) path.shift();
@@ -514,6 +545,7 @@
     elTotal.textContent = String(seenKeys.size);
     const counts = new Map();
     for (const m of markers.values()) counts.set(m.camera, (counts.get(m.camera) ?? 0) + 1);
+    for (const e of noGeo.values()) counts.set(e.camera, (counts.get(e.camera) ?? 0) + 1);
     for (const [id, el] of camCountEls) el.textContent = String(counts.get(id) ?? 0);
   }
 
@@ -546,36 +578,71 @@
 
   // ---- sidebar: per-camera counts grouped under floor headings ---------------
   function buildSidebar() {
-    const addRow = (cam) => {
+    const addHead = (text) => {
+      const head = document.createElement("div");
+      head.className = "floor-head";
+      head.textContent = text;
+      elCams.append(head);
+    };
+    const addRow = (camId) => {
       const row = document.createElement("div");
       row.className = "cam-row";
       const sw = document.createElement("span");
       sw.className = "swatch";
-      sw.style.background = camColor.get(cam.id);
+      sw.style.background = camColor.get(camId);
       const name = document.createElement("span");
-      name.textContent = cam.id;
+      name.textContent = camId;
       const count = document.createElement("span");
       count.className = "count";
       count.textContent = "0";
       row.append(sw, name, count);
       elCams.append(row);
-      camCountEls.set(cam.id, count);
+      camCountEls.set(camId, count);
     };
+    // M1: the live camera is not in the plan — its tracklets have no
+    // floor_xy yet (M3 calibrates), so it gets its own heading, first.
+    if (sourceMode === "camera" && liveCamId !== null) {
+      addHead("LIVE");
+      addRow(liveCamId);
+    }
     const grouped = new Set();
     for (const f of plan.floors ?? []) {
-      const head = document.createElement("div");
-      head.className = "floor-head";
-      head.textContent = f.name ?? f.id;
-      elCams.append(head);
+      addHead(f.name ?? f.id);
       for (const cam of plan.cameras ?? []) {
         if (cam.floor !== f.id) continue;
         grouped.add(cam.id);
-        addRow(cam);
+        addRow(cam.id);
       }
     }
     for (const cam of plan.cameras ?? []) {
-      if (!grouped.has(cam.id)) addRow(cam); // defensive: floor id not in plan
+      if (!grouped.has(cam.id)) addRow(cam.id); // defensive: floor id not in plan
     }
+  }
+
+  // ---- M1 live camera strip --------------------------------------------------
+  function refreshCamStream() {
+    if (sourceMode !== "camera") return;
+    // Fresh query string forces the browser to open a NEW multipart
+    // connection — after a server restart the old MJPEG socket is dead but
+    // the <img> often stalls on the last frame without firing any event.
+    elCamImg.src = "/video.mjpg?t=" + Date.now();
+  }
+
+  function setupCameraMode() {
+    document.title = "URBAN-MTMC · M1";
+    elBadge.textContent = "M1 · LIVE CAMERA";
+    elClockLabel.textContent = "CAM CLOCK"; // ts_s = seconds since worker start
+    camColor.set(liveCamId, "#00e5ff");     // accent: a live feed, not a plan cam
+    elCamLabel.textContent = liveCamId + " · /video.mjpg";
+    elCamStrip.hidden = false;
+    elCamImg.addEventListener("error", () => {
+      if (camRetryTimer !== null) return;
+      camRetryTimer = setTimeout(() => {  // cheap retry loop while the server
+        camRetryTimer = null;             // is down: error -> wait 2 s -> retry
+        refreshCamStream();
+      }, 2000);
+    });
+    refreshCamStream();
   }
 
   // ---- boot -----------------------------------------------------------------
@@ -589,11 +656,27 @@
     }
   }
 
+  // Single attempt, made only after loadPlan() proved the server is up.
+  // An M0 server without the endpoint (404/network) just means sim mode.
+  async function loadSource() {
+    try {
+      const r = await fetch("/api/source");
+      if (r.ok) return await r.json();
+    } catch { /* fall through */ }
+    return { mode: "sim", camera_id: null };
+  }
+
   async function main() {
     plan = await loadPlan();
+    const src = await loadSource();
+    if (src && src.mode === "camera") {
+      sourceMode = "camera";
+      liveCamId = src.camera_id ?? "live0";
+    }
     floorById = new Map((plan.floors ?? []).map((f) => [f.id, f]));
     for (const c of plan.cameras ?? []) camFloor.set(c.id, c.floor);
     (plan.cameras ?? []).forEach((c, i) => camColor.set(c.id, PALETTE[i % PALETTE.length]));
+    if (sourceMode === "camera") setupCameraMode(); // before buildSidebar: swatch color
     buildSidebar();
     resize();
     new ResizeObserver(resize).observe(stage);

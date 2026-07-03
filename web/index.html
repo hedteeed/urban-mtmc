@@ -11,17 +11,26 @@
 <body>
   <header>
     <h1>URBAN-MTMC</h1>
-    <span class="badge">M0 · SIMULATOR</span>
+    <span class="badge" id="badge">M0 · SIMULATOR</span>
     <label class="gt" title="Recolor dots by ground-truth global_id and draw true paths">
       <input type="checkbox" id="gt"> GROUND TRUTH
     </label>
   </header>
   <main>
-    <div id="stage"><canvas id="canvas"></canvas></div>
+    <div id="view">
+      <!-- M1 camera strip: hidden unless /api/source says mode=camera -->
+      <div id="camstrip" hidden>
+        <figure class="cam-card">
+          <img id="camimg" alt="live camera feed">
+          <figcaption id="camlabel">live0</figcaption>
+        </figure>
+      </div>
+      <div id="stage"><canvas id="canvas"></canvas></div>
+    </div>
     <aside>
       <div id="chip" class="chip">CONNECTING</div>
       <section>
-        <div class="stat"><span class="k">SIM CLOCK</span><span class="v" id="clock">00:00</span></div>
+        <div class="stat"><span class="k" id="clock-label">SIM CLOCK</span><span class="v" id="clock">00:00</span></div>
         <div class="stat"><span class="k">OBS/S</span><span class="v" id="rate">0</span></div>
         <div class="stat"><span class="k">TRACKLETS SEEN</span><span class="v" id="total">0</span></div>
       </section>
