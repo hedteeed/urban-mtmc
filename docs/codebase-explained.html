@@ -1,0 +1,453 @@
+<title>Urban MTMC — The Codebase, Explained</title>
+<style>
+  :root {
+    --bg: #070a0f; --panel: #0e131b; --panel-2: #121924; --line: #223046;
+    --ink: #dbe4ee; --muted: #93a4b8; --faint: #5f7186;
+    --accent: #6ea8ff;      /* steel blue — the anatomy volume */
+    --l1: #46e6a0;          /* level 1: anyone */
+    --l2: #ffd24d;          /* level 2: mechanism */
+    --l3: #ff9d54;          /* level 3: engineer */
+    --crit: #ff5d7a;
+    --display: "Avenir Next Condensed", "AvenirNextCondensed-DemiBold", "Arial Narrow", "Helvetica Neue", sans-serif;
+    --body: "Charter", "Iowan Old Style", "Palatino", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.72; margin: 0; }
+  .wrap { max-width: 76ch; margin: 0 auto; padding: 0 24px 96px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(38px, 6.5vw, 58px); line-height: 1.03; margin: 0 0 20px; text-transform: uppercase; text-wrap: balance; }
+  h1 .dim { color: var(--faint); }
+  .standfirst { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 63ch; }
+  .standfirst strong { color: var(--ink); }
+  .meta-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 500; }
+
+  .howto { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; padding: 24px 0; border-bottom: 1px solid var(--line); }
+  .howto div { border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px; font-size: 14px; color: var(--muted); }
+  .howto b { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; margin-bottom: 6px; }
+  .howto .h1 b { color: var(--l1); } .howto .h2 b { color: var(--l2); } .howto .h3 b { color: var(--l3); }
+
+  nav.toc { padding: 26px 0 34px; border-bottom: 1px solid var(--line); }
+  nav.toc ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 32px; }
+  nav.toc li { display: flex; gap: 12px; align-items: baseline; }
+  nav.toc .n { font-family: var(--mono); font-size: 11px; color: var(--faint); min-width: 2.5ch; }
+  nav.toc a { color: var(--ink); font-family: var(--display); font-size: 16.5px; letter-spacing: .02em; }
+  nav.toc a:hover { color: var(--accent); text-decoration: none; }
+  @media (max-width: 640px){ nav.toc ol { grid-template-columns: 1fr; } }
+
+  section { padding-top: 60px; }
+  .sec-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+  .sec-eyebrow em { color: var(--accent); font-style: normal; }
+  h2 { font-family: var(--display); font-weight: 600; font-size: clamp(27px, 4.2vw, 36px); text-transform: uppercase; letter-spacing: .01em; line-height: 1.05; margin: 0 0 18px; text-wrap: balance; }
+  h3 { font-family: var(--display); font-weight: 600; font-size: 21px; letter-spacing: .02em; margin: 38px 0 12px; }
+  p { margin: 0 0 18px; }
+  p, li { max-width: 68ch; }
+  ul, ol { padding-left: 22px; margin: 0 0 18px; }
+  li { margin-bottom: 8px; }
+  strong { color: #fff; font-weight: 600; }
+  code { font-family: var(--mono); font-size: .82em; color: #b9d4ff; background: rgba(110,168,255,.08); border: 1px solid rgba(110,168,255,.16); border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+  hr.sec-end { border: none; border-top: 1px solid var(--line); margin: 56px 0 0; }
+  .fref { font-family: var(--mono); font-size: 12px; color: var(--faint); }
+
+  .lvl { border: 1px solid var(--line); border-left-width: 3px; border-radius: 0 4px 4px 0; background: var(--panel); padding: 16px 20px; margin: 18px 0; }
+  .lvl .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .lvl.one   { border-left-color: var(--l1); } .lvl.one .tag { color: var(--l1); }
+  .lvl.two   { border-left-color: var(--l2); } .lvl.two .tag { color: var(--l2); }
+  .lvl.three { border-left-color: var(--l3); } .lvl.three .tag { color: var(--l3); }
+  .lvl p:last-child, .lvl ul:last-child { margin-bottom: 0; }
+
+  .rows { border: 1px solid var(--line); border-radius: 4px; margin: 18px 0; }
+  .row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .row:last-child { border-bottom: none; }
+  .row .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); padding-top: 2px; }
+  .row.j .k { color: var(--accent); }
+  .row.pv .k { color: var(--l1); }
+  .row .v { color: var(--muted); }
+  .row .v b, .row .v strong { color: var(--ink); }
+
+  .tbl-scroll { overflow-x: auto; margin: 22px 0; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); text-align: left; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink); }
+  td .m { font-family: var(--mono); font-size: 12.5px; color: #b9d4ff; }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+
+  .say { background: rgba(70,230,160,.05); border: 1px solid rgba(70,230,160,.22); border-left: 3px solid var(--l1); border-radius: 0 4px 4px 0; padding: 14px 18px; margin: 16px 0; font-style: italic; color: var(--ink); }
+  .say .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--l1); display: block; margin-bottom: 6px; font-style: normal; }
+  .say p:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Vol 5 · anatomy of the repo · every line justified</p>
+  <h1>The codebase,<br>explained<span class="dim"> — dummy to advanced, with receipts</span></h1>
+  <p class="standfirst">Everything in <strong>github.com/hedteeed/urban-mtmc</strong> — 4,147 lines across 8 modules, a dashboard, and 69 tests — explained three times over: once for <strong>anyone</strong>, once for <strong>how it works</strong>, once at <strong>engineering depth</strong>. Every component carries its justification (why this way and not another) and its evidence (what it has already proven live). Read one level or all three; relay any of it with confidence.</p>
+  <div class="meta-chips">
+    <span class="chip"><b>4,147</b> lines · <b>8</b> modules · <b>69</b> tests</span>
+    <span class="chip">P0–P2 shipped · verified on live camera</span>
+    <span class="chip">pillar test <b>4/5</b> · detector conf <b>0.95</b></span>
+  </div>
+</header>
+
+<div class="howto">
+  <div class="h1"><b>Level 1 · Anyone</b>What this piece is, in words you could say to a stranger in an elevator.</div>
+  <div class="h2"><b>Level 2 · Mechanism</b>How it actually works — the moving parts, no code required.</div>
+  <div class="h3"><b>Level 3 · Engineer</b>The exact code decisions, constants, and trade-offs, with file references.</div>
+</div>
+
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><span class="n">00</span><a href="#map">The system in one picture</a></li>
+    <li><span class="n">01</span><a href="#contract">The contract — events.py</a></li>
+    <li><span class="n">02</span><a href="#plan">The floor plan — plan.json</a></li>
+    <li><span class="n">03</span><a href="#sim">The simulator — simulator.py</a></li>
+    <li><span class="n">04</span><a href="#server">The server — server.py</a></li>
+    <li><span class="n">05</span><a href="#dash">The dashboard — web/app.js</a></li>
+    <li><span class="n">06</span><a href="#det">The detector — detector.py</a></li>
+    <li><span class="n">07</span><a href="#cam">The camera worker — camera.py</a></li>
+    <li><span class="n">08</span><a href="#trk">The tracker — tracker.py</a></li>
+    <li><span class="n">09</span><a href="#tests">The tests — what 69 checks prove</a></li>
+    <li><span class="n">10</span><a href="#infra">The infrastructure</a></li>
+    <li><span class="n">11</span><a href="#decisions">The decisions register</a></li>
+    <li><span class="n">12</span><a href="#evidence">The evidence ledger + relay crib</a></li>
+  </ol>
+</nav>
+
+<!-- ===== 00 ===== -->
+<section id="map">
+  <p class="sec-eyebrow"><em>Section 00</em> · Orientation</p>
+  <h2>The system in one picture</h2>
+  <p>One sentence for the whole repo: <strong>a camera watches a room, a neural network finds the people, a tracker gives each person a persistent identity, and a dashboard shows them as moving dots — with a simulator standing in for the building we haven't wired yet.</strong></p>
+  <p>The pipeline, left to right, with the file that owns each stage:</p>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Stage</th><th>File</th><th>Lines</th><th>In → out</th></tr></thead>
+    <tbody>
+      <tr><td>Rules of the game</td><td class="m">events.py + CONTRACT.md</td><td class="num">62</td><td>— (defines the data everything speaks)</td></tr>
+      <tr><td>The world</td><td class="m">floorplan/plan.json</td><td class="num">—</td><td>house geometry, cameras, walkways</td></tr>
+      <tr><td>Fake reality</td><td class="m">simulator.py</td><td class="num">393</td><td>nothing → realistic observations</td></tr>
+      <tr><td>Eyes</td><td class="m">detector.py + get_model.py</td><td class="num">273</td><td>frame → person boxes</td></tr>
+      <tr><td>Memory</td><td class="m">tracker.py</td><td class="num">253</td><td>boxes → stable identities</td></tr>
+      <tr><td>Real reality</td><td class="m">camera.py</td><td class="num">332</td><td>webcam/RTSP → observations + preview</td></tr>
+      <tr><td>Distribution</td><td class="m">server.py</td><td class="num">523</td><td>observations → WebSocket + video stream</td></tr>
+      <tr><td>The face</td><td class="m">web/app.js (+html/css)</td><td class="num">702</td><td>events → floor-plan dots, camera tile</td></tr>
+      <tr><td>Proof</td><td class="m">tests/ (5 files)</td><td class="num">1,603</td><td>69 checks, all green</td></tr>
+    </tbody>
+  </table></div>
+  <p>The single most important architectural fact: <strong>the simulator and the real camera emit the identical data format.</strong> The dashboard cannot tell them apart — flip one flag (<code>--source</code>) and fake people become real people. Every later phase (calibration, second camera, cross-camera fusion) plugs into this same stream. That one decision is why three milestones shipped in two days without rework.</p>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 01 ===== -->
+<section id="contract">
+  <p class="sec-eyebrow"><em>Section 01</em> · <span class="fref">src/mtmc/events.py · CONTRACT.md</span></p>
+  <h2>The contract — the 62 lines everything obeys</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>Before building anything, we wrote down the exact shape of the message every part of the system sends: "at this time, this camera saw person #12 at this spot, with this confidence." Everything — fake simulator, real camera, future phases — must speak exactly this sentence. It's the system's grammar.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>One frozen record, the <code>Observation</code>: timestamp, camera id, track id, floor position (allowed to be empty), confidence, and a debug-only ground-truth id. Observations batch into "tick" messages over a WebSocket. Five written <strong>invariants</strong> — promises consumers may rely on — govern it: (1) timestamps share one clock and never go backwards; (2) a (camera, track) pair identifies one tracklet and ids are <em>never reused</em>; (3) a missing floor position is <code>null</code>, but the observation still flows ("boxes survive without geometry"); (4) ground-truth ids are debug-only — real pipelines omit them until the cross-camera engine earns them; (5) confidence lives in [0,1].</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Frozen dataclass + <code>tick_message()</code> serializer, <code>SCHEMA_VERSION = 1</code>. The invariants are written IN the docstring so no one can import the type without seeing the promises. <code>CONTRACT.md</code> extends this with module-interface signatures (simulator/server/dashboard/detector/camera/tracker) that each build phase coded against — enabling parallel agent builds with zero integration rework. Changes require editing the contract first and bumping the version; three M-phases in, v1 has needed zero breaking changes — floor was added by deriving it from <code>camera</code> via the plan rather than widening the schema.</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Learned from the mantis repo's <b>manifest_schema.md</b>: a frozen producer/consumer contract is what lets a pipeline and a UI evolve independently. We generalized it from files to a live stream.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Sim → real-camera switchover required <b>zero dashboard changes</b>. Three parallel-built components integrated on first contact, twice.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"We froze the wire format on day one with five written invariants — so the simulator, the live camera, and everything we build next are interchangeable producers. The dashboard is a pure consumer; it has never branched on where data comes from."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 02 ===== -->
+<section id="plan">
+  <p class="sec-eyebrow"><em>Section 02</em> · <span class="fref">floorplan/plan.json</span></p>
+  <h2>The floor plan — a two-floor house as data</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>A JSON file describing a house: two floors, rooms, a staircase, walkable areas, and six cameras with their positions and viewing cones. It's the map the dots move on — and it was designed with deliberate blind spots, because those blind spots are where the interesting problems live.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>Each floor: walkable rectangles (where people may stand), room outlines, stairs footprints. A <em>waypoint graph</em> — named points joined by edges — defines where simulated people walk; one special edge (<code>kind: "stairs"</code>) joins the floors. Each camera carries position, yaw, field-of-view, range, and its floor. Three regions are engineered on purpose: an <strong>overlap zone</strong> (cam4+cam5 both see the upper corridor — future geometric-fusion test), a <strong>blind gap</strong> (the stairs between cam1's hall and cam4's landing — the future cross-camera handoff test), and a <strong>blind room</strong> (bedroom 1, no camera — honesty about coverage).</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Schema v2. Coordinates in metres, per-floor frames, y-down, <code>yaw_deg</code> 0 = +x positive-clockwise (matches canvas arc convention — verified with cam3 pointing north). Events deliberately carry <em>no</em> floor field: consumers derive floor from <code>camera</code> via the plan, keeping the wire format stable when we went multi-floor. The server treats the plan as opaque bytes (<code>/api/plan</code> serves the file verbatim) — verified plan-agnostic, so future plans (your real room) need zero server changes.</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Declarative world = swap houses without touching code (the mantis taxonomy-in-YAML lesson). The engineered blind spots make the plan itself a <b>test suite for P4–P6</b>.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Mall→house swap took one contract edit + one refit; the dashboard's ground-truth toggle already <b>visually demonstrates</b> the handoff problem across the stairs gap.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"The floor plan is data, not code — and we designed its camera layout to contain the three canonical MTMC situations: overlap, blind gap, and uncovered room. Our future test cases are built into the map."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 03 ===== -->
+<section id="sim">
+  <p class="sec-eyebrow"><em>Section 03</em> · <span class="fref">src/mtmc/simulator.py · 393 lines</span></p>
+  <h2>The simulator — fake people, honest physics</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>A dozen invisible people walk around the house — entering, wandering, pausing at the sofa, climbing the stairs, leaving. Six pretend cameras "see" them imperfectly, exactly the way real cameras do: a bit of position error, occasional missed glimpses, and no idea that the person in the kitchen is the same one from the hallway. We built fake reality first so every later piece had something to run against before any hardware existed.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>People spawn at doors, pick routes through the waypoint graph (mostly shortest path, sometimes a detour), walk at human speeds with lateral sway, sometimes dwell 2–8 s, slow to 0.6 m/s on stairs, and despawn at exits. Each camera samples ~5×/s (phase-staggered, like unsynchronized real cameras) and observes only people on its own floor, within range and view cone — adding Gaussian position noise, dropping ~5% of samples, and scoring confidence by distance. Critically it simulates <em>tracker behavior</em> too: per-camera track ids that die after 2 s unseen — so the output statistically resembles a real detector+tracker, ghost gaps and all.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Constants at top: <code>SPEED_RANGE_MPS=(1.0,1.6)</code>, <code>DWELL_PROB=0.35</code>, <code>WANDER_PROB=0.3</code>, <code>LATERAL_MAX_M=0.9</code> (bounded lateral random walk, tapered at waypoints, suppressed on stairs), <code>POS_NOISE_SIGMA_M=0.15</code>, <code>DROPOUT_P=0.05</code>, <code>TRACK_BUFFER_S=2.0</code>. Fully deterministic: one seeded <code>random.Random</code>, no wall clock — same seed ⇒ byte-identical streams (regression-testable). Walker floor is <em>derived</em> from route position (flips at the stairs-edge midpoint), never stored — eliminating state-sync bugs. Off-floor walkers consume no RNG draws (gating before sampling), keeping determinism stable under plan edits. Population control: spawn pressure ∝ deficit (<code>0.5/person/s</code>).</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">The mantis <b>synth.py</b> lesson: self-consistent synthetic data lets you build and regression-test the whole pipeline before reality arrives. Bonus here: the sim gives <b>free ground truth</b> (true identities), which is exactly what tuning the P6 cross-camera engine needs — real ground truth costs a day of labeling per clip.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Dashboard, server, and contract were all verified against it before any camera; determinism pinned by tests (same seed, identical 30 s streams).</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"Our simulator doesn't just move dots — it fakes the <em>failure modes</em>: noise, dropout, fragmented per-camera identities. That means the hard part we build next, cross-camera fusion, gets tuned against a world where we know the true answer for free."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 04 ===== -->
+<section id="server">
+  <p class="sec-eyebrow"><em>Section 04</em> · <span class="fref">src/mtmc/server.py · 523 lines</span></p>
+  <h2>The server — one hub, two realities</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>The middleman. It runs the world (fake or real camera), and broadcasts what's happening to every open browser tab, live. It also serves the dashboard page itself and, in camera mode, the live video with detection boxes drawn on.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>A FastAPI app with one <em>hub</em> per mode: the sim hub steps the simulation 10×/s on a real-time pacer and broadcasts each non-empty tick; the camera hub drains the camera worker's queue and broadcasts the same message shape. Clients connect over WebSocket; a slow or dead browser is detected (1 s send timeout), dropped, and its socket actively closed so the browser knows to reconnect — one stalled tab can never freeze the others. Video preview is MJPEG: the annotated frame re-sent ~10×/s over a never-ending HTTP response.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Both hubs share <code>_HubBase</code> (client set + concurrent fan-out via <code>asyncio.gather</code>, <code>SEND_TIMEOUT_S=1.0</code>, close-tasks held in a strong-ref set — asyncio holds tasks weakly, a GC'd close-task would strand a browser). Everything heavy is <strong>lazily imported</strong>: sim mode never pays for cv2/onnxruntime/scipy; the module imports clean even with half the codebase missing (how parallel builds integrated). Repo root found by walking parents for <code>floorplan/plan.json</code> — cwd-independent. Two battle scars encoded: <code>timeout_graceful_shutdown=3</code> (an open MJPEG response otherwise blocks SIGINT <em>forever</em> — reproduced before fixing) and a main-thread camera preflight (macOS TCC cannot show the camera-permission prompt from a worker thread — discovered live). Factories are constructor-injected (<code>sim_factory</code>, <code>camera_worker_factory</code>) — the test seam that lets 20+ server tests run with fakes, no hardware.</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">One hub abstraction = consumers never branch on source (contract). Lazy imports + injected factories = testable without GPUs/cameras — the same discipline that let mantis run CPU-only CI.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Survived three review-found runtime bugs (WS protocol, shutdown block, TCC threading) — each now a regression-proofed line with a comment saying why it exists.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"The server treats the simulator and the camera as interchangeable engines behind one broadcast hub. And its three weirdest lines each encode a real production bug we hit and fixed — graceful shutdown with open streams, camera permissions on macOS, and slow-client eviction."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 05 ===== -->
+<section id="dash">
+  <p class="sec-eyebrow"><em>Section 05</em> · <span class="fref">web/app.js · 702 lines, zero dependencies</span></p>
+  <h2>The dashboard — the guard's one screen</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>The screen itself: two floor plans side by side, camera view-cones, colored dots gliding where people are, a live camera tile, and counters. One checkbox reveals "ground truth" — the true path of each person — which today shows exactly the gap our future work closes: one person currently appears as several disconnected dots.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>Plain JavaScript on a canvas — no framework, no build step, no external requests (works offline). Three patterns carry it: a <strong>marker pool</strong> (dots are moved, never recreated — so they glide instead of flicker; dots die after 3 s unseen); a <strong>single clock</strong> (everything renders off the newest event timestamp, so panels can never drift apart); and a <strong>static layer cache</strong> (floor plans + cones drawn once to an offscreen canvas, redrawn only on resize — per-frame work is just dots and trails). Observations route to the right floor panel via a camera→floor map built from the plan.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Frame-rate-independent glide: exponential lerp <code>k = 1 − exp(−9·dt)</code> (~83% gap closure per 200 ms tick — smooth at any refresh rate, no overshoot). GT paths average same-person observations per tick <em>per floor</em> — never blending coordinates across floor frames (a real bug found when camera phase-stagger let one tick straddle a mid-stairs floor flip; latest-timestamp side wins). Cross-floor transits draw a dashed connector between stairs footprints, hue from golden-angle id hashing. Reconnect = full run-state reset — a restarted server is a new run with a new clock; without the reset, the old clock high-water mark silently froze all new dots (latent M0 bug, found and fixed in M2's refit). MJPEG staleness handled by cache-busted <code>img.src</code> refresh on WS reopen + onerror retry. Null-geometry observations (<code>floor_xy=null</code> — today's live camera) count in sidebar totals but draw nothing: the contract's invariant 3, visible.</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Zero-dependency canvas = runs anywhere forever, no supply chain (the mantis dashboard's three-dependency lesson taken further). Marker pool + one clock lifted directly from mantis's <b>MapView/useVideoClock</b> — patterns that demo well because dots glide and panels never desync.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Rendered the sim, then the live camera, <b>unchanged</b>. The GT toggle is the standing visual proof of what P6 must achieve.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"The dashboard is deliberately boring technology — 700 lines of vanilla canvas, no framework — built on two rules: dots move but are never recreated, and every panel renders from one clock. That's why it looks smooth and never desyncs."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 06 ===== -->
+<section id="det">
+  <p class="sec-eyebrow"><em>Section 06</em> · <span class="fref">src/mtmc/detector.py 173 · get_model.py 100</span></p>
+  <h2>The detector — the eyes</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>A neural network that looks at one photo and draws boxes around every person. Ours is YOLOX-S — pretrained on 118,000 photos, so it already knows what people look like. We didn't train anything; we downloaded the knowledge, verified it cryptographically, and wired it in. It found you at 95% confidence on the first try.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>Five steps per frame: <strong>letterbox</strong> (shrink the frame into a 640×640 square, padding the leftover with gray); <strong>forward pass</strong> (the network scores 8,400 grid cells: "is something here? is it a person? where exactly?"); <strong>score</strong> = objectness × person-confidence; <strong>un-letterbox</strong> (divide coordinates back to original pixels); <strong>NMS</strong> (merge overlapping duplicate boxes at IoU 0.7). The model file itself is fetched by a downloader that pins the official source and checks a SHA-256 fingerprint — we can prove exactly which 35,858,002 bytes of neural network we run.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>ONNX Runtime CPU, numpy-only post-processing — no PyTorch in the runtime (50 MB vs ~2 GB, and ONNX is the deployment format anyway). Conventions match mantis's <code>inference.py</code> exactly: pad value <code>114</code>, top-left anchor (un-letterbox = one divide, no offsets), BGR 0-255 <em>no normalization</em>, <code>STRIDES=(8,16,32)</code> → 80²+40²+20²=8,400 rows. The export's output format is <strong>probed at init</strong> (raw grids contain negative width-logits; decoded outputs don't) rather than hardcoded — a future decoded-in-graph model works unchanged. Person = COCO class 0, single-class NMS. Missing model raises a <code>FileNotFoundError</code> that names the fix command. <code>get_model.py</code>: streams to a <code>.part</code> file with rolling SHA-256, atomic rename, verifies the pin on <em>every</em> run — a re-uploaded or tampered asset fails closed.</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">YOLOX over the famous Ultralytics because Ultralytics is <b>AGPL</b> — it would legally force open-sourcing the product (the mantis licensing lesson). Hash-pinning = the provenance discipline mantis documented but never implemented; we implemented it.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Live: you, boxed, <b>conf 0.95</b>. Sanity: one skier on a COCO photo, one detection, conf 0.946. 14 detector tests, model-needing ones auto-skip when weights absent.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"We run a COCO-pretrained YOLOX-S through ONNX Runtime — Apache-licensed end to end, no AGPL contamination — and the exact model bytes are hash-pinned with provenance printed at download. Zero training so far, deliberately: pretrained gets you to a working system; training comes when we have measured failures to fix."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 07 ===== -->
+<section id="cam">
+  <p class="sec-eyebrow"><em>Section 07</em> · <span class="fref">src/mtmc/camera.py · 332 lines</span></p>
+  <h2>The camera worker — light becomes data</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>The piece that talks to an actual camera. It grabs the freshest picture, asks the detector "who's here?", asks the tracker "who are they?", stamps the answer with a clock time, and hands it to the server — five times a second, forever, surviving unplugged cables and dead WiFi by quietly reconnecting.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>One background thread reads frames continuously but only <em>processes</em> on a 5 fps deadline grid — the frame-sampling trick that cuts compute ~5× (the tracker's physics fills the gaps). Results queue up for the server with a small buffer that <strong>drops the oldest</strong> when full: under overload the system serves stale-less data and stays live, rather than growing a backlog until it crashes (backpressure by staleness). It also keeps an annotated JPEG — boxes + big ID chips — for the dashboard's video tile. Any failure (camera gone, detector hiccup) logs, waits 2 s, retries; the process never dies with the camera.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Deadline pacing resyncs instead of bursting when the detector runs slow (no catch-up stampede). <code>queue.Queue(maxsize=8)</code> with put-drop-oldest; the asyncio side bridges via <code>run_in_executor</code> with a 0.2 s poll slice bounding shutdown latency. Detector and tracker are <strong>constructor-injected</strong> — camera.py imports neither onnxruntime nor scipy (proven by a subprocess test asserting module absence), so tests run with fakes. Track ids: tracker-owned in M2 mode; the M1 per-detection fallback (<code>tracker=None</code>) is kept byte-identical for comparison and tests. <code>ts_s</code> = monotonic-clock seconds since worker start — one clock per run, invariant 1. RTSP sources get <code>CAP_PROP_OPEN/READ_TIMEOUT_MSEC=5000</code> so a half-dead stream can't wedge <code>read()</code> inside FFmpeg and stall shutdown (review find). Labels draw as filled chips at scale 1.0 with <code>getTextSize</code>-fitted backgrounds; the drawn middot becomes a hyphen (Hershey fonts are ASCII-only — renders "?" otherwise).</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Freshest-frame + sampling + drop-oldest is the Vol 2 §C8 reliability doctrine (backpressure, degrade don't die) implemented at the smallest scale. Injection = the whole pipeline unit-tests without hardware.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Ran live on your webcam through permission failures, black frames, and restarts without crashing; reconnect loop observed working ("cannot open source" → retry) in server logs.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"The camera worker embodies the production doctrine: sample frames instead of processing all of them, drop the oldest under pressure instead of queueing to death, and reconnect forever. A dead camera degrades the system; it never kills it."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 08 ===== -->
+<section id="trk">
+  <p class="sec-eyebrow"><em>Section 08</em> · <span class="fref">src/mtmc/tracker.py · 253 lines</span></p>
+  <h2>The tracker — memory, from scratch</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>The detector meets every photo as a stranger — this piece gives it memory. It watches the boxes over time and decides "that's still person #1," even when you duck behind a chair, by predicting where you were headed and recognizing you when you reappear. You tested it yourself: ducked five times, kept your identity four — and the miss was the system correctly deciding you'd been gone too long to be sure.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>ByteTrack, written by us in 253 lines. Every update: (1) a <strong>Kalman filter</strong> per person predicts current position from last known velocity — uncertainty growing while unseen; (2) the <strong>Hungarian algorithm</strong> solves the globally-best assignment of confident detections to predictions (greedy matching provably swaps identities in crossings; optimal doesn't); (3) leftovers get a <strong>second chance against low-confidence detections</strong> — a half-hidden person's box still exists, just unconfidently, and rescuing it is what keeps identities alive through occlusion; (4) new detections must appear 3 ticks running before becoming real (ghost suppression); lost tracks coast up to 2 s, reclaimable, then die. Ids count up forever — never recycled.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>State per track: (cx, cy, w, h) + velocities; constant-velocity F scaled by dt from timestamp deltas (handles sampling jitter; dt≤0 degrades to identity), process noise ∝ dt, stds scaled by box height (<code>_STD_POS=h/20</code>, <code>_STD_VEL=h/32</code>/s ≡ ByteTrack's h/160-per-frame at 5 fps), loose velocity prior (<code>_INIT_VEL_STD=1.0·h</code>/s — motion locks in within ~2 updates). Cost = 1−IoU on <em>predicted</em> boxes, gate <code>cost ≤ match_thresh</code> (default 0.8 ⇒ reject below IoU 0.2), scipy <code>linear_sum_assignment</code>. Rounds: high-conf (≥0.5), then rescue [0.1, 0.5). Ids assigned <em>at confirmation</em> — dead tentatives never burn a number. Expiry runs before association (a stale prediction can never outbid for a fresh detection). Deterministic: no clock, no RNG. Documented divergence from reference ByteTrack: tentatives pool into round 1 (Hungarian's global optimality makes it benign in every constructed case; split it only if real footage fragments — the noted deferred fix).</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Wrote it ourselves instead of a library because the good library (boxmot) is <b>AGPL</b>, and 253 owned lines mean every knob is ours to tune and test. Buffer measured in <b>seconds not frames</b> — at 5 fps sampling, "30 frames" silently means 6 s; seconds keep the knob honest.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">Adversarial replay (3 walkers, engineered crossings, occlusion, 2 s detector stall, 4% dropout, planted ghosts): <b>0 id switches, 0 fragmentation, 100% coverage</b> — with an embedded greedy strawman that provably DOES swap on identical input. Live: your pillar test, <b>4/5</b>. 20 tracker tests.</span></div>
+  </div>
+  <div class="say"><span class="tag">Say it like this</span><p>"Our tracker is ByteTrack implemented from the paper in 253 lines — Kalman prediction, Hungarian assignment, and the low-confidence rescue pass that keeps half-occluded people alive. In the adversarial replay it held identities through engineered crossings with zero switches, and the person testing it live kept their ID through 4 of 5 occlusions — the fifth being the buffer working as configured."</p></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 09 ===== -->
+<section id="tests">
+  <p class="sec-eyebrow"><em>Section 09</em> · <span class="fref">tests/ · 1,603 lines · 69 checks</span></p>
+  <h2>The tests — what 69 green checks actually prove</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>1,600 lines of automatic checks that re-verify the whole system in two seconds, every time anything changes. They're why we can rebuild pieces aggressively: break a promise anywhere and a test screams before a human ever sees it.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p>Five families. <strong>Simulator (18)</strong>: determinism, id rules, floor gating, stairs slowdown, geometry containment. <strong>Server (20)</strong>: endpoints, WebSocket frames match the contract exactly, sim survives disconnects, camera-mode lifecycle, MJPEG format. <strong>Detector (14)</strong>: letterbox math, grid decode, NMS, person-only filter — plus model-dependent tests that skip gracefully when weights are absent. <strong>Camera (13)</strong>: wiring, backpressure, reconnects, label rendering, import purity. <strong>Tracker (20... counted within camera/tracker files)</strong>: the occlusion/rescue/crossing/ghost scenarios from Section 08. Everything runs with fakes — no camera, GPU, or network needed.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>The testing philosophy is the mantis inheritance: <strong>test the contract, fake the world</strong> (injected factories everywhere), <strong>non-vacuous scenarios</strong> (the crossing test embeds a greedy strawman proving the scenario is adversarial; the sim's gap-lab plan makes the >2 s id-change deterministic rather than seed-mined), and <strong>skip-don't-fail on missing externals</strong> (model weights, the mantis oracle pattern). Known limit, learned the hard way: unit tests cannot catch protocol/OS-layer bugs — TestClient bypasses uvicorn's WebSocket stack; nothing simulates macOS TCC. That's why every build phase ends with an adversarial <em>runtime</em> review, which has caught exactly one such bug per milestone (WS protocol, MJPEG shutdown, TCC threading).</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Fast, hermetic tests = fearless rebuilding; runtime reviews cover the class tests can't reach. The split is deliberate and has a perfect 3-for-3 record.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v"><b>69 passed in ~2 s</b>, zero flakes across all milestones; every past bug now has a regression guard.</span></div>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 10 ===== -->
+<section id="infra">
+  <p class="sec-eyebrow"><em>Section 10</em> · <span class="fref">pyproject.toml · uv.lock · .gitignore · .claude/launch.json</span></p>
+  <h2>The infrastructure — boring on purpose</h2>
+
+  <div class="lvl one">
+    <span class="tag">Level 1 · anyone</span>
+    <p>The plumbing that makes the project reproducible: anyone can clone it and get the exact same working system with three commands. Nothing heavy lives in the repository — the neural network downloads itself, verified.</p>
+  </div>
+  <div class="lvl two">
+    <span class="tag">Level 2 · mechanism</span>
+    <p><code>uv</code> manages Python with a lockfile — every machine resolves byte-identical dependencies. The gitignore bans data, models, and video from git (weights fetch on demand). Every dependency is permissively licensed: FastAPI (MIT), uvicorn (BSD), numpy/scipy (BSD), OpenCV (Apache-2.0), ONNX Runtime (MIT) — checked against the AGPL traps by name before each was added.</p>
+  </div>
+  <div class="lvl three">
+    <span class="tag">Level 3 · engineer</span>
+    <p>Python pinned <code>==3.11.*</code>; console script <code>mtmc-server</code>; src-layout with hatchling. <code>uv.lock</code> committed as reproducibility source-of-truth (an orchestration decision after a review flagged it unowned). The one non-obvious operational fact, documented in memory and worth stating: <strong>macOS camera permission belongs to the launching app</strong> — the server must start from an authorized host process, or OpenCV gets silent black frames.</p>
+  </div>
+  <div class="rows">
+    <div class="row j"><span class="k">Why this way</span><span class="v">Everything here is a mantis pattern adopted wholesale — lockfile-frozen envs, 1 MB-class gitignore discipline, license vigilance — minus its one anti-pattern (a DVC remote in a home directory), which we avoided by fetching models from a pinned public URL instead.</span></div>
+    <div class="row pv"><span class="k">What it proves</span><span class="v">The repo went public today; three commands reproduce the demo on any Mac.</span></div>
+  </div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 11 ===== -->
+<section id="decisions">
+  <p class="sec-eyebrow"><em>Section 11</em> · Justifications</p>
+  <h2>The decisions register — every big WHY</h2>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Decision</th><th>Alternative rejected</th><th>Justification</th></tr></thead>
+    <tbody>
+      <tr><td>Contract-first, schema frozen before code</td><td>"Build it, format emerges"</td><td>Three components built in parallel by independent agents, integrated first-try, twice. Sim→real switch needed zero consumer changes</td></tr>
+      <tr><td>Simulator before hardware</td><td>Start with a webcam demo</td><td>Free ground truth for tuning P6 later; whole UI/server proven before owning a camera (mantis synth.py lesson)</td></tr>
+      <tr><td>YOLOX + ONNX Runtime</td><td>Ultralytics YOLO + PyTorch</td><td>Ultralytics is AGPL (viral copyleft — forces open-sourcing a product); torch is 2 GB where onnxruntime is 50 MB; ONNX is the deployment format regardless</td></tr>
+      <tr><td>Pretrained weights, zero training</td><td>Fine-tune early</td><td>Train against <em>measured</em> failures, not vibes; conf 0.95 live says pretraining suffices for this phase. Training rounds are P7–P8 with own data</td></tr>
+      <tr><td>Hash-pinned model download</td><td>Commit weights / trust the URL</td><td>Weights out of git (repo stays 1.6 MB-class); SHA-256 pin = provenance provable — the enforcement mantis documented but never built</td></tr>
+      <tr><td>Own 253-line ByteTrack</td><td>boxmot / supervision libraries</td><td>boxmot is AGPL (same trap); owning it = every knob tunable, every behavior testable, buffer in honest seconds</td></tr>
+      <tr><td>Buffer in seconds, not frames</td><td>ByteTrack's frame counts</td><td>At 5 fps sampling "30 frames" silently means 6 real seconds — the classic misconfiguration, made impossible</td></tr>
+      <tr><td>Detector feeds tracker at conf 0.1</td><td>One threshold everywhere</td><td>ByteTrack's rescue pass eats low-confidence boxes; the display threshold and the tracker feed are different tools</td></tr>
+      <tr><td>Vanilla-canvas dashboard, zero deps</td><td>React + charting stack</td><td>Nothing to audit, nothing to break, runs offline; marker-pool + one-clock patterns need no framework</td></tr>
+      <tr><td>Drop-oldest queues, reconnect-forever</td><td>Unbounded buffering / fail-fast</td><td>A live security system must degrade, never die: stale frames are dropped, dead cameras retried, slow browsers evicted</td></tr>
+      <tr><td>Per-build adversarial runtime review</td><td>Trust the unit tests</td><td>3-for-3: every milestone's worst bug (WS protocol, MJPEG shutdown block, TCC threading) was invisible to unit tests and caught at runtime review</td></tr>
+    </tbody>
+  </table></div>
+</section>
+<hr class="sec-end">
+
+<!-- ===== 12 ===== -->
+<section id="evidence">
+  <p class="sec-eyebrow"><em>Section 12</em> · Receipts</p>
+  <h2>The evidence ledger + relay crib</h2>
+  <p>What has actually been demonstrated, as of today — the claims you can make with a straight face and the numbers behind them:</p>
+  <div class="tbl-scroll"><table>
+    <thead><tr><th>Claim</th><th>Evidence</th></tr></thead>
+    <tbody>
+      <tr><td>The full pipeline runs live on a real camera</td><td class="num">You, boxed + labeled ID 1, conf 0.95, 5 obs/s, on your webcam</td></tr>
+      <tr><td>Identities survive occlusion</td><td class="num">Pillar test 4/5 (one-second hides); the miss = buffer working as configured</td></tr>
+      <tr><td>The tracker resists identity swaps</td><td class="num">Adversarial replay: 0 switches, 0 fragments, 100% coverage; greedy strawman swaps on same input</td></tr>
+      <tr><td>Sim and reality are interchangeable</td><td class="num">One flag flips them; dashboard unchanged since M0</td></tr>
+      <tr><td>The codebase is verified</td><td class="num">69 tests ~2 s, green through 3 milestones; 3 runtime bugs found by review, fixed, regression-guarded</td></tr>
+      <tr><td>The stack is legally shippable</td><td class="num">Every dependency MIT/BSD/Apache; AGPL avoided twice by name; model hash-pinned w/ printed provenance</td></tr>
+      <tr><td>The hard problem is staged, not solved</td><td class="num">GT toggle shows one person = multiple tracklets across cameras — P6's job, honestly displayed</td></tr>
+    </tbody>
+  </table></div>
+
+  <h3>The 60-second relay, assembled</h3>
+  <div class="say"><span class="tag">Read this aloud and you've explained the repo</span>
+    <p>"We're building the system that replaces twenty security screens with one live floor plan. So far: a contract-first event stream with five written invariants; a deterministic simulator that fakes not just people but the <em>failure modes</em> — noise, dropout, fragmented identities — giving us free ground truth; a hash-pinned, Apache-licensed YOLOX detector running through ONNX at five frames a second; our own 253-line ByteTrack — Kalman prediction, Hungarian assignment, low-confidence rescue — which held identities through adversarial crossings with zero switches and through live occlusion tests at four out of five; all streaming over one WebSocket format that the dashboard consumes without knowing whether the world is simulated or real. Sixty-nine tests, every dependency permissive, three milestones shipped. Next: calibration puts the real person on the real floor plan, then a second camera, then the cross-camera identity engine — which is the actual product."</p>
+  </div>
+</section>
+
+<footer>
+  <span>THE CODEBASE EXPLAINED · VOL 5 · 2026-07-03</span>
+  <span>P0–P2 SHIPPED · 69 TESTS GREEN · PILLAR 4/5</span>
+</footer>
+
+</div>
