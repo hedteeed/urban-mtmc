@@ -10,14 +10,17 @@ from __future__ import annotations
 import asyncio
 import json
 import shutil
+import sys
 import time
+import types
 from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
 from mtmc import events
-from mtmc.server import create_app
+from mtmc.server import _parse_args, create_app
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PLAN_PATH = REPO_ROOT / "floorplan" / "plan.json"
@@ -236,3 +239,130 @@ def test_camera_mode_ws_delivers_tick_frame_and_worker_lifecycle(tmp_root: Path)
         assert obs["floor_xy"] is None
         assert obs["global_id"] is None
         assert 0.0 <= obs["conf"] <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# M2: tracker plumbing (CONTRACT.md §M2 additions)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def factory_probe(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
+    """Fake out the DEFAULT worker factory's three lazy imports so tests can
+    run it with no model weights, no device, and no mtmc.tracker (agent A's
+    module, built in parallel). Everything constructed is recorded."""
+    created: dict[str, Any] = {}
+
+    class FakeByteTracker:
+        def __init__(self, **kwargs: float) -> None:
+            created["tracker"] = self
+            created["tracker_kwargs"] = kwargs
+
+    # The real module may not exist yet — inject a stand-in where the lazy
+    # `from mtmc.tracker import ByteTracker` will find it.
+    tracker_mod = types.ModuleType("mtmc.tracker")
+    tracker_mod.ByteTracker = FakeByteTracker  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "mtmc.tracker", tracker_mod)
+
+    import mtmc.camera
+    import mtmc.detector
+
+    class FakeDetector:
+        def __init__(self, **kwargs: float) -> None:
+            created["detector_kwargs"] = kwargs
+
+    monkeypatch.setattr(mtmc.detector, "PersonDetector", FakeDetector)
+
+    class FakeWorker(StubCameraWorker):
+        def __init__(
+            self,
+            source: str,
+            detector: Any,
+            cam_fps: float = 5.0,
+            *,
+            tracker: Any = None,
+        ) -> None:
+            super().__init__()
+            created["worker"] = self
+            created["source"] = source
+            created["cam_fps"] = cam_fps
+            created["worker_tracker"] = tracker
+
+    monkeypatch.setattr(mtmc.camera, "CameraWorker", FakeWorker)
+    return created
+
+
+def test_camera_mode_default_factory_builds_bytetracker(
+    tmp_root: Path, factory_probe: dict[str, Any]
+) -> None:
+    # No injected factory: create_app must wire the default one (tracker ON).
+    app = create_app(root=tmp_root, source="0")
+    worker = app.state.hub.ensure_worker()
+
+    assert worker is factory_probe["worker"]
+    assert factory_probe["source"] == "0"
+    assert factory_probe["worker_tracker"] is factory_probe["tracker"], (
+        "the constructed ByteTracker is handed to the worker"
+    )
+    # Contract M2 defaults, by keyword.
+    assert factory_probe["tracker_kwargs"] == {
+        "track_thresh": 0.5,
+        "match_thresh": 0.8,
+        "track_buffer_s": 2.0,
+        "min_hits": 3,
+    }
+    # Tracked mode lowers the detector floor to feed ByteTrack's round 2.
+    assert factory_probe["detector_kwargs"] == {"conf": pytest.approx(0.1)}
+
+
+def test_tracker_flags_thread_through_create_app(
+    tmp_root: Path, factory_probe: dict[str, Any]
+) -> None:
+    app = create_app(
+        root=tmp_root,
+        source="0",
+        track_thresh=0.6,
+        match_thresh=0.9,
+        track_buffer_s=1.5,
+        min_hits=5,
+    )
+    app.state.hub.ensure_worker()
+    assert factory_probe["tracker_kwargs"] == {
+        "track_thresh": 0.6,
+        "match_thresh": 0.9,
+        "track_buffer_s": 1.5,
+        "min_hits": 5,
+    }
+
+
+def test_no_track_restores_m1_worker(tmp_root: Path, factory_probe: dict[str, Any]) -> None:
+    app = create_app(root=tmp_root, source="0", track=False)
+    app.state.hub.ensure_worker()
+
+    assert factory_probe["worker_tracker"] is None
+    assert "tracker" not in factory_probe, "--no-track never constructs a ByteTracker"
+    assert factory_probe["detector_kwargs"] == {}, "detector keeps its own conf default"
+
+
+def test_cli_tracking_flags_and_defaults() -> None:
+    args = _parse_args([])
+    assert args.source == "sim"
+    assert (args.track_thresh, args.match_thresh, args.track_buffer, args.min_hits) == (
+        0.5,
+        0.8,
+        2.0,
+        3,
+    )
+    assert args.no_track is False
+
+    args = _parse_args(
+        ["--source", "0", "--no-track", "--track-thresh", "0.7", "--match-thresh", "0.85",
+         "--track-buffer", "1.5", "--min-hits", "2"]
+    )
+    assert args.no_track is True
+    assert (args.track_thresh, args.match_thresh, args.track_buffer, args.min_hits) == (
+        0.7,
+        0.85,
+        1.5,
+        2,
+    )

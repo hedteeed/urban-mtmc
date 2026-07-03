@@ -12,9 +12,11 @@ import sys
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 
 import cv2
 import numpy as np
+import pytest
 
 from mtmc.camera import CameraWorker, CaptureLike
 from mtmc.events import Observation
@@ -239,6 +241,154 @@ def test_module_imports_without_touching_onnxruntime() -> None:
     not pull in onnxruntime (contract: camera mode only pays for it)."""
     proc = subprocess.run(
         [sys.executable, "-c", "import sys, mtmc.camera; assert 'onnxruntime' not in sys.modules"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+
+
+# ---------------------------------------------------------------------------
+# M2: injected tracker (CONTRACT.md §M2 additions)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class FakeTrack:
+    """Contract Track shape: track_id + box + conf."""
+
+    track_id: int
+    box: tuple[float, float, float, float]
+    conf: float
+
+
+class FakeTracker:
+    """ByteTracker stand-in: records every update() call and returns a canned
+    confirmed-track list ([] = nothing confirmed yet)."""
+
+    def __init__(self, tracks: list[FakeTrack] | None = None) -> None:
+        self.calls: list[tuple[list[tuple[float, float, float, float, float]], float]] = []
+        self.tracks = tracks or []
+
+    def update(
+        self, detections: list[tuple[float, float, float, float, float]], ts_s: float
+    ) -> list[FakeTrack]:
+        self.calls.append((list(detections), ts_s))
+        return list(self.tracks)
+
+
+CONFIRMED = [
+    FakeTrack(track_id=7, box=(5.0, 5.0, 29.0, 43.0), conf=0.83),
+    FakeTrack(track_id=9, box=(21.0, 7.0, 59.0, 45.0), conf=0.44),
+]
+
+
+def test_tracker_receives_every_detection_with_frame_ts() -> None:
+    tracker = FakeTracker(CONFIRMED)
+    worker, _ = make_worker(cam_fps=100.0, tracker=tracker)
+    worker.start()
+    try:
+        batches = drain(worker, min_batches=3)
+    finally:
+        worker.stop()  # joins the thread: tracker.calls is final below
+
+    # ALL detections are forwarded, unfiltered — including the low-conf one
+    # the tracker's round 2 needs — with the frame's own timestamp.
+    expected_dets = FakeDetector().detect(np.zeros(FRAME_SHAPE, dtype=np.uint8))
+    assert len(tracker.calls) >= 3
+    for dets, ts in tracker.calls:
+        assert dets == expected_dets
+        assert ts >= 0.0
+    ts_calls = [ts for _dets, ts in tracker.calls]
+    assert ts_calls == sorted(ts_calls), "invariant 1 upstream of the tracker"
+
+    # Observations mirror the CONFIRMED tracks the tracker returned: its ids,
+    # its confs, one Observation each, stamped with the update's ts.
+    ts_seen = set(ts_calls)
+    for batch in batches:
+        assert [obs.track_id for obs in batch] == [7, 9]
+        assert [obs.conf for obs in batch] == pytest.approx([0.83, 0.44])
+        assert len({obs.ts_s for obs in batch}) == 1, "one instant per batch"
+        assert batch[0].ts_s in ts_seen, "batch ts is the tracker-update ts"
+        for obs in batch:
+            assert obs.camera == "live0"
+            assert obs.floor_xy is None  # no calibration until M3
+            assert obs.global_id is None  # real pipelines carry no ground truth
+
+
+def test_no_observations_while_tracker_confirms_nothing() -> None:
+    tracker = FakeTracker(tracks=[])
+    worker, detector = make_worker(cam_fps=200.0, tracker=tracker)
+    worker.start()
+    try:
+        deadline = time.monotonic() + 5.0
+        while len(tracker.calls) < 5 and time.monotonic() < deadline:
+            time.sleep(0.01)
+    finally:
+        worker.stop()
+
+    assert len(tracker.calls) >= 5, "detector and tracker kept running"
+    assert detector.calls >= 5
+    assert worker.get_batch(timeout=0.05) is None, "tentative tracks never emit"
+
+
+def test_tracked_jpeg_labels_carry_track_id(monkeypatch: pytest.MonkeyPatch) -> None:
+    texts: list[str] = []
+    real_put_text = cv2.putText
+
+    def spying_put_text(img: np.ndarray, text: str, *args: object, **kwargs: object) -> object:
+        texts.append(text)
+        return real_put_text(img, text, *args, **kwargs)
+
+    monkeypatch.setattr("mtmc.camera.cv2.putText", spying_put_text)
+
+    worker, _ = make_worker(cam_fps=100.0, tracker=FakeTracker(CONFIRMED))
+    worker.start()
+    try:
+        assert drain(worker, min_batches=1)
+        jpeg = worker.latest_jpeg
+    finally:
+        worker.stop()  # joined before monkeypatch undo: no cross-thread race
+
+    assert isinstance(jpeg, bytes) and jpeg[:2] == b"\xff\xd8"
+    assert "ID 7 · 0.83" in texts and "ID 9 · 0.44" in texts  # contract label
+    assert all(t.startswith("ID ") for t in texts), "no M1 'person' labels in tracked mode"
+
+
+class ExplodingOnceTracker(FakeTracker):
+    """First update raises; the capture loop must skip the frame, not die."""
+
+    def update(
+        self, detections: list[tuple[float, float, float, float, float]], ts_s: float
+    ) -> list[FakeTrack]:
+        first = not self.calls
+        result = super().update(detections, ts_s)
+        if first:
+            raise RuntimeError("kalman went singular")
+        return result
+
+
+def test_tracker_failure_skips_frame_but_worker_survives() -> None:
+    worker, _ = make_worker(cam_fps=100.0, tracker=ExplodingOnceTracker(CONFIRMED))
+    worker.start()
+    try:
+        batches = drain(worker, min_batches=2)
+    finally:
+        worker.stop()
+
+    assert len(batches) >= 2, "kept streaming after the tracker blew up once"
+
+
+def test_module_imports_without_scipy_or_mtmc_tracker() -> None:
+    """The tracker is injected, never imported: importing mtmc.camera must not
+    pull in mtmc.tracker or scipy (contract M2: lazy, tracked-mode-only cost)."""
+    code = (
+        "import sys, mtmc.camera; "
+        "assert 'mtmc.tracker' not in sys.modules; "
+        "assert 'scipy' not in sys.modules"
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", code],
         capture_output=True,
         text=True,
         timeout=60,

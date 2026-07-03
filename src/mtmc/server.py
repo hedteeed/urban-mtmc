@@ -17,6 +17,10 @@ Constraints honoured here:
   anything else ("0", "rtsp://…") streams a real camera through the SAME hub
   and wire format — consumers never branch on source (contract). The detector
   and ``mtmc.camera`` are imported lazily, only when camera mode starts.
+* M2: camera mode defaults to ByteTrack with the contract's parameters
+  (``--track-thresh``/``--match-thresh``/``--track-buffer``/``--min-hits``
+  override; ``--no-track`` restores M1 per-detection ids). ``mtmc.tracker``
+  (and its scipy) is imported only when a tracker is actually constructed.
 """
 
 from __future__ import annotations
@@ -27,6 +31,7 @@ import json
 import logging
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
@@ -49,6 +54,15 @@ DEFAULT_SEED = 42
 DEFAULT_PEOPLE = 12
 DEFAULT_SOURCE = "sim"
 DEFAULT_CAM_FPS = 5.0
+
+# CONTRACT.md §M2 ByteTracker defaults (mirrored by the CLI flags).
+DEFAULT_TRACK_THRESH = 0.5
+DEFAULT_MATCH_THRESH = 0.8
+DEFAULT_TRACK_BUFFER_S = 2.0
+DEFAULT_MIN_HITS = 3
+# Tracked mode lowers the detector floor: ByteTrack's round-2 rescue needs
+# the low-conf detections the M1 default (detector's own conf) would drop.
+TRACKED_DETECTOR_CONF = 0.1
 
 
 class SimulationLike(Protocol):
@@ -98,16 +112,44 @@ def _default_sim_factory(plan_path: Path, seed: int, people: int) -> Callable[[]
     return factory
 
 
-def _default_worker_factory(source: str, cam_fps: float) -> Callable[[], CameraWorkerLike]:
+@dataclass(frozen=True)
+class _TrackerSettings:
+    """ByteTracker construction parameters; ``None`` wherever tracking is off."""
+
+    track_thresh: float = DEFAULT_TRACK_THRESH
+    match_thresh: float = DEFAULT_MATCH_THRESH
+    track_buffer_s: float = DEFAULT_TRACK_BUFFER_S
+    min_hits: int = DEFAULT_MIN_HITS
+
+
+def _default_worker_factory(
+    source: str, cam_fps: float, tracking: _TrackerSettings | None
+) -> Callable[[], CameraWorkerLike]:
     """Deferred imports again: onnxruntime/cv2 (and agent A's detector, built
     in parallel) are only touched when camera mode actually starts — sim mode
-    and a bare ``import mtmc.server`` never pay for them."""
+    and a bare ``import mtmc.server`` never pay for them. ``mtmc.tracker``
+    (scipy) is deferred one step further: only when a tracker is constructed."""
 
     def factory() -> CameraWorkerLike:
         from mtmc.camera import CameraWorker
         from mtmc.detector import PersonDetector  # raises clearly if the model is missing
 
-        return CameraWorker(source, PersonDetector(), cam_fps=cam_fps)
+        if tracking is None:  # --no-track: M1 ids, detector keeps its own conf default
+            return CameraWorker(source, PersonDetector(), cam_fps=cam_fps)
+
+        from mtmc.tracker import ByteTracker  # lazy: scipy is a tracked-mode-only cost
+
+        return CameraWorker(
+            source,
+            PersonDetector(conf=TRACKED_DETECTOR_CONF),
+            cam_fps=cam_fps,
+            tracker=ByteTracker(
+                track_thresh=tracking.track_thresh,
+                match_thresh=tracking.match_thresh,
+                track_buffer_s=tracking.track_buffer_s,
+                min_hits=tracking.min_hits,
+            ),
+        )
 
     return factory
 
@@ -124,6 +166,9 @@ class _HubBase:
     def __init__(self) -> None:
         self._task: asyncio.Task[None] | None = None
         self._clients: set[WebSocket] = set()
+        # The loop keeps only weak refs to tasks; hold close-tasks here so a
+        # GC pause can't collect one before the browser gets its close frame.
+        self._close_tasks: set[asyncio.Task[None]] = set()
 
     async def attach(self, ws: WebSocket) -> bool:
         raise NotImplementedError
@@ -158,7 +203,9 @@ class _HubBase:
                 # Close the socket so the browser's onclose fires and its
                 # reconnect/backoff takes over; without this a once-stalled
                 # tab is dropped server-side but stays frozen client-side.
-                asyncio.get_running_loop().create_task(self._close_quietly(ws))
+                t = asyncio.get_running_loop().create_task(self._close_quietly(ws))
+                self._close_tasks.add(t)
+                t.add_done_callback(self._close_tasks.discard)
 
     @staticmethod
     async def _close_quietly(ws: WebSocket) -> None:
@@ -288,6 +335,11 @@ def create_app(
     sim_factory: Callable[[], SimulationLike] | None = None,
     source: str = DEFAULT_SOURCE,
     cam_fps: float = DEFAULT_CAM_FPS,
+    track: bool = True,
+    track_thresh: float = DEFAULT_TRACK_THRESH,
+    match_thresh: float = DEFAULT_MATCH_THRESH,
+    track_buffer_s: float = DEFAULT_TRACK_BUFFER_S,
+    min_hits: int = DEFAULT_MIN_HITS,
     camera_worker_factory: Callable[[], CameraWorkerLike] | None = None,
 ) -> FastAPI:
     """Build the FastAPI app.
@@ -295,6 +347,9 @@ def create_app(
     ``root``, ``sim_factory`` and ``camera_worker_factory`` exist for tests:
     the default factories import ``mtmc.simulator`` / ``mtmc.camera`` at call
     time, never at module import. ``source`` != "sim" selects camera mode.
+    The ``track*``/``min_hits`` knobs shape only the DEFAULT worker factory
+    (contract M2: tracker ON unless ``track=False``); an injected
+    ``camera_worker_factory`` owns its whole wiring.
     """
     repo_root = (root or _find_repo_root()).resolve()
     web_dir = repo_root / "web"
@@ -305,7 +360,12 @@ def create_app(
     hub: _HubBase
     if mode == "camera":
         if camera_worker_factory is None:
-            camera_worker_factory = _default_worker_factory(source, cam_fps)
+            tracking = (
+                _TrackerSettings(track_thresh, match_thresh, track_buffer_s, min_hits)
+                if track
+                else None
+            )
+            camera_worker_factory = _default_worker_factory(source, cam_fps, tracking)
         camera_hub = _CameraHub(camera_worker_factory)
         hub = camera_hub
     else:
@@ -385,9 +445,10 @@ def create_app(
     return app
 
 
-def main() -> None:
-    """Console script ``mtmc-server`` (contract flags: --port/--seed/--people
-    plus M1's --source/--cam-fps)."""
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Contract flags: --port/--seed/--people, M1 --source/--cam-fps, M2
+    --track-thresh/--match-thresh/--track-buffer/--min-hits/--no-track.
+    Factored out of main() so tests can probe the flag surface without uvicorn."""
     parser = argparse.ArgumentParser(prog="mtmc-server", description="urban-mtmc server")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
@@ -398,7 +459,26 @@ def main() -> None:
         help='"sim" (default), a webcam index like "0", or an rtsp:// URL',
     )
     parser.add_argument("--cam-fps", type=float, default=DEFAULT_CAM_FPS)
-    args = parser.parse_args()
+    parser.add_argument("--track-thresh", type=float, default=DEFAULT_TRACK_THRESH)
+    parser.add_argument("--match-thresh", type=float, default=DEFAULT_MATCH_THRESH)
+    parser.add_argument(
+        "--track-buffer",
+        type=float,
+        default=DEFAULT_TRACK_BUFFER_S,
+        help="seconds a lost track coasts before dying",
+    )
+    parser.add_argument("--min-hits", type=int, default=DEFAULT_MIN_HITS)
+    parser.add_argument(
+        "--no-track",
+        action="store_true",
+        help="M1 behaviour: one fresh track id per detection, no ByteTrack",
+    )
+    return parser.parse_args(argv)
+
+
+def main() -> None:
+    """Console script ``mtmc-server``."""
+    args = _parse_args()
 
     import uvicorn  # runtime dependency of the script, not of importing this module
 
@@ -420,7 +500,17 @@ def main() -> None:
             )
 
     uvicorn.run(
-        create_app(seed=args.seed, people=args.people, source=args.source, cam_fps=args.cam_fps),
+        create_app(
+            seed=args.seed,
+            people=args.people,
+            source=args.source,
+            cam_fps=args.cam_fps,
+            track=not args.no_track,
+            track_thresh=args.track_thresh,
+            match_thresh=args.match_thresh,
+            track_buffer_s=args.track_buffer,
+            min_hits=args.min_hits,
+        ),
         host="127.0.0.1",
         port=args.port,
         # An open /video.mjpg response never ends on its own; without a bound

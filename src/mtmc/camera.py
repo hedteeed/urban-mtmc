@@ -1,18 +1,24 @@
 """mtmc.camera — a real video source (webcam / RTSP) as an Observation stream.
 
 CONTRACT.md §M1: ``cv2.VideoCapture`` over the source, frames read
-continuously (freshest wins), detection sampled at ~``cam_fps``. Each
-detection becomes ONE ``Observation``: ``floor_xy=None`` (no calibration
-until M3), ``global_id=None`` (real pipelines carry no ground truth), and
-``track_id`` = a fresh monotonic id — every detection is its own one-frame
-tracklet, so invariant 2 holds and the fragmentation is honest (M2's
-ByteTrack replaces this). ``ts_s`` is seconds since worker start on a
-monotonic clock (invariant 1).
+continuously (freshest wins), detection sampled at ~``cam_fps``. With no
+tracker, each detection becomes ONE ``Observation``: ``floor_xy=None`` (no
+calibration until M3), ``global_id=None`` (real pipelines carry no ground
+truth), and ``track_id`` = a fresh monotonic id — every detection is its own
+one-frame tracklet, so invariant 2 holds and the fragmentation is honest.
+``ts_s`` is seconds since worker start on a monotonic clock (invariant 1).
+
+CONTRACT.md §M2: an injected tracker replaces the per-detection ids. The
+tracker sees EVERY detection plus the frame's ``ts_s``; Observations are
+emitted only for the CONFIRMED tracks it returns (its ``track_id``/``conf``),
+and the preview labels become ``"ID {track_id} · {conf:.2f}"``.
+``tracker=None`` preserves M1 behaviour exactly.
 
 Constraints honoured here:
 
-* The detector is INJECTED, never imported — this module imports without
-  onnxruntime present, and tests inject fakes (no device, no model file).
+* The detector AND the tracker are INJECTED, never imported — this module
+  imports without onnxruntime or scipy present, and tests inject fakes
+  (no device, no model file, no mtmc.tracker).
 * Batches cross the thread boundary through a SMALL queue with drop-oldest
   overflow: a stalled consumer resumes on fresh data, never a backlog.
 * Camera open failure or stream loss logs, sleeps, and reconnects in a
@@ -53,6 +59,28 @@ class DetectorLike(Protocol):
     def detect(self, frame_bgr: np.ndarray) -> list[tuple[float, float, float, float, float]]: ...
 
 
+class TrackLike(Protocol):
+    """The ``mtmc.tracker.Track`` surface the worker reads (a frozen dataclass
+    on agent A's side; read-only properties keep both satisfiable)."""
+
+    @property
+    def track_id(self) -> int: ...
+
+    @property
+    def box(self) -> tuple[float, float, float, float]: ...
+
+    @property
+    def conf(self) -> float: ...
+
+
+class TrackerLike(Protocol):
+    """The ``mtmc.tracker.ByteTracker`` surface (injected, never imported)."""
+
+    def update(
+        self, detections: list[tuple[float, float, float, float, float]], ts_s: float
+    ) -> list[TrackLike]: ...
+
+
 class CaptureLike(Protocol):
     """The slice of ``cv2.VideoCapture`` the worker uses (fakeable in tests)."""
 
@@ -65,7 +93,16 @@ class CaptureLike(Protocol):
 
 def _open_capture(source: str) -> CaptureLike:
     """``"0"``/``"1"`` -> local webcam index; anything else (rtsp://…) is a URL."""
-    return cv2.VideoCapture(int(source) if source.isdigit() else source)
+    if source.isdigit():
+        return cv2.VideoCapture(int(source))
+    # Network sources: a half-dead RTSP peer can block read() for tens of
+    # seconds inside FFmpeg, stalling stop() and reconnect. Bound both open
+    # and read so a stuck stream returns False and the reconnect loop runs.
+    return cv2.VideoCapture(
+        source,
+        cv2.CAP_FFMPEG,
+        [cv2.CAP_PROP_OPEN_TIMEOUT_MSEC, 5000, cv2.CAP_PROP_READ_TIMEOUT_MSEC, 5000],
+    )
 
 
 class CameraWorker:
@@ -78,6 +115,7 @@ class CameraWorker:
         cam_fps: float = 5.0,
         camera_id: str = "live0",
         *,
+        tracker: TrackerLike | None = None,  # None = M1 per-detection ids (contract M2)
         capture_factory: Callable[[str], CaptureLike] = _open_capture,
         queue_maxsize: int = DEFAULT_QUEUE_MAXSIZE,
         reconnect_delay_s: float = DEFAULT_RECONNECT_DELAY_S,
@@ -88,6 +126,7 @@ class CameraWorker:
         self.camera_id = camera_id
         self._source = source
         self._detector = detector
+        self._tracker = tracker
         self._period_s = 1.0 / cam_fps
         self._capture_factory = capture_factory
         self._reconnect_delay_s = reconnect_delay_s
@@ -202,20 +241,46 @@ class CameraWorker:
         except Exception:
             logger.exception("camera %s: detector failed; frame skipped", self.camera_id)
             return
+        if self._tracker is None:
+            labelled = [
+                ((x1, y1, x2, y2), f"person {conf:.2f}") for x1, y1, x2, y2, conf in detections
+            ]
+            batch = [
+                Observation(
+                    ts_s=ts_s,
+                    camera=self.camera_id,
+                    track_id=next(self._track_ids),  # one-frame tracklet (contract M1)
+                    floor_xy=None,  # no calibration until M3
+                    conf=min(1.0, max(0.0, float(conf))),  # invariant 5
+                    global_id=None,  # real pipelines carry no ground truth
+                )
+                for _x1, _y1, _x2, _y2, conf in detections
+            ]
+        else:
+            # The tracker sees EVERY detection — ByteTrack's round-2 rescue
+            # feeds on the low-conf ones a naive threshold would discard —
+            # and every sampled frame, even an empty one: coasting/expiry
+            # advance on ts_s, not on detections (contract M2).
+            try:
+                tracks = self._tracker.update(detections, ts_s)
+            except Exception:
+                logger.exception("camera %s: tracker failed; frame skipped", self.camera_id)
+                return
+            labelled = [(t.box, f"ID {t.track_id} · {t.conf:.2f}") for t in tracks]
+            batch = [
+                Observation(
+                    ts_s=ts_s,
+                    camera=self.camera_id,
+                    track_id=t.track_id,  # stable, never reused — tracker's invariant 2
+                    floor_xy=None,  # no calibration until M3
+                    conf=min(1.0, max(0.0, float(t.conf))),  # invariant 5
+                    global_id=None,  # real pipelines carry no ground truth
+                )
+                for t in tracks  # CONFIRMED only: tentative tracks never emit
+            ]
         # JPEG first, then queue: a consumer woken by the queue may read
         # latest_jpeg immediately and must never see a stale/absent preview.
-        self._store_jpeg(self._annotate(frame, detections))
-        batch = [
-            Observation(
-                ts_s=ts_s,
-                camera=self.camera_id,
-                track_id=next(self._track_ids),  # one-frame tracklet (contract M1)
-                floor_xy=None,  # no calibration until M3
-                conf=min(1.0, max(0.0, float(conf))),  # invariant 5
-                global_id=None,  # real pipelines carry no ground truth
-            )
-            for _x1, _y1, _x2, _y2, conf in detections
-        ]
+        self._store_jpeg(self._annotate(frame, labelled))
         if batch:  # empty frames produce no events, matching the sim's cadence
             self._push(batch)
 
@@ -232,15 +297,19 @@ class CameraWorker:
                     pass
 
     def _annotate(
-        self, frame: np.ndarray, detections: list[tuple[float, float, float, float, float]]
+        self,
+        frame: np.ndarray,
+        labelled_boxes: list[tuple[tuple[float, float, float, float], str]],
     ) -> bytes | None:
-        for x1, y1, x2, y2, conf in detections:
+        # Label text is contract-exact; Hershey fonts draw non-ASCII (the M2
+        # middot) as "?", which is a rendering limit, not a wiring bug.
+        for (x1, y1, x2, y2), label in labelled_boxes:
             p1 = (int(round(x1)), int(round(y1)))
             p2 = (int(round(x2)), int(round(y2)))
             cv2.rectangle(frame, p1, p2, _BOX_BGR, 2)
             cv2.putText(
                 frame,
-                f"person {conf:.2f}",
+                label,
                 (p1[0], max(12, p1[1] - 5)),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.45,
