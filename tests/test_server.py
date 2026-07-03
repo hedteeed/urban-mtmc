@@ -58,14 +58,14 @@ def tmp_root(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def test_api_plan_returns_plan_with_six_cameras() -> None:
+def test_api_plan_returns_plan_file() -> None:
     # Default root discovery must find the real repo from the package file.
+    # Server is plan-agnostic: full-body equality against the file is the
+    # whole contract — no assumptions about plan contents here.
     client = TestClient(create_app())
     resp = client.get("/api/plan")
     assert resp.status_code == 200
-    body = resp.json()
-    assert body == json.loads(PLAN_PATH.read_text(encoding="utf-8"))
-    assert len(body["cameras"]) == 6
+    assert resp.json() == json.loads(PLAN_PATH.read_text(encoding="utf-8"))
 
 
 def test_index_serves_html_when_present(tmp_root: Path) -> None:

@@ -115,11 +115,19 @@ aside {
 .stat .k { font-size: 10px; letter-spacing: 1px; color: var(--dim); }
 .stat .v { font-variant-numeric: tabular-nums; }
 
+#cams .floor-head {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--dim);
+  margin: 10px 0 3px;
+}
+#cams .floor-head:first-child { margin-top: 2px; }
+
 .cam-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 0;
+  padding: 3px 0 3px 6px;
   font-size: 12px;
 }
 .cam-row .swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }

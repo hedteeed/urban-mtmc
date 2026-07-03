@@ -1,12 +1,19 @@
 """Synthetic crowd + camera simulator — M0 stand-in for a real detector/tracker.
 
 Emits the frozen `mtmc.events.Observation` stream from seeded walkers on the
-floor-plan waypoint graph. Constraints (CONTRACT.md §mtmc.simulator):
+floor-plan waypoint graph (plan schema v2: multi-floor, per-floor frames).
+Constraints (CONTRACT.md §mtmc.simulator):
 deterministic per seed — one ``random.Random``, no wall clock; per-camera
 track ids obey the >2 s track-buffer rule and are never reused within a run;
 observations carry gaussian position noise, dropout, and a distance-based
 confidence. Cameras sample at ``obs_hz`` with per-camera phase stagger, so a
 single ``step()`` may emit observations at several nearby timestamps.
+
+Multi-floor rules: every walker is on exactly one floor at any instant — on a
+``kind: "stairs"`` edge the floor flips at the edge midpoint. Stairs edges are
+traversed at ~0.6 m/s with heading jitter suppressed. Walkable containment is
+checked against the walker's current floor's rects, and a camera observes a
+walker only when ``walker.floor == camera.floor``.
 """
 
 from __future__ import annotations
@@ -26,6 +33,7 @@ DWELL_RANGE_S = (2.0, 8.0)
 WANDER_PROB = 0.3                # chance a route detours via random waypoints
 LATERAL_MAX_M = 0.9              # bound on heading-jitter drift off the edge line
 SPAWNS_PER_DEFICIT_PER_S = 0.5   # spawn pressure per missing person
+STAIRS_SPEED_MPS = 0.6           # everyone slows on stairs edges (jitter suppressed too)
 
 # Camera model
 POS_NOISE_SIGMA_M = 0.15
@@ -53,6 +61,7 @@ class _Camera:
     """Static camera plus per-run tracker state (ids monotonic, never reused)."""
 
     cid: str
+    floor: str  # a camera only ever observes people on its own floor
     x: float
     y: float
     yaw_deg: float
@@ -83,25 +92,43 @@ class Simulation:
         if obs_hz <= 0:
             raise ValueError("obs_hz must be positive")
         self._rng = random.Random(seed)
-        self._wp: dict[str, tuple[float, float]] = {
-            name: (float(x), float(y)) for name, (x, y) in plan["waypoints"].items()
-        }
+        # Plan v2: waypoints are {name: {floor, xy}}; xy is metres in that
+        # floor's own frame (per-floor origins — never mix frames).
+        self._wp: dict[str, tuple[float, float]] = {}
+        self._wp_floor: dict[str, str] = {}
+        for name, spec in plan["waypoints"].items():
+            x, y = spec["xy"]
+            self._wp[name] = (float(x), float(y))
+            self._wp_floor[name] = spec["floor"]
         self._adj: dict[str, list[tuple[str, float]]] = {n: [] for n in self._wp}
-        for a, b in plan["edges"]:
+        self._stairs_edges: set[frozenset[str]] = set()
+        for e in plan["edges"]:
+            if isinstance(e, dict):  # {"from", "to", "kind": "stairs"} cross-floor edge
+                a, b = e["from"], e["to"]
+                if e.get("kind") == "stairs":
+                    self._stairs_edges.add(frozenset((a, b)))
+            else:  # plain [a, b] pair, same-floor
+                a, b = e
             d = math.dist(self._wp[a], self._wp[b])
             self._adj[a].append((b, d))
             self._adj[b].append((a, d))
         self._entrances: list[str] = list(plan["entrances"])
         self._dwell_points = frozenset(plan.get("dwell_points", ()))
-        self._rects = [
-            (float(r["x"]), float(r["y"]), float(r["w"]), float(r["h"]))
-            for r in plan["walkable"]
-        ]
+        # Per-floor walkable rects: containment is checked against the
+        # walker's CURRENT floor only.
+        self._rects: dict[str, list[tuple[float, float, float, float]]] = {
+            f["id"]: [
+                (float(r["x"]), float(r["y"]), float(r["w"]), float(r["h"]))
+                for r in f["walkable"]
+            ]
+            for f in plan["floors"]
+        }
         self._target = n_people_target
         self._period_s = 1.0 / obs_hz
         self._cameras = [
             _Camera(
                 cid=c["id"],
+                floor=c["floor"],
                 x=float(c["pos"][0]),
                 y=float(c["pos"][1]),
                 yaw_deg=float(c["yaw_deg"]),
@@ -124,6 +151,10 @@ class Simulation:
     def population(self) -> int:
         """Current walker count. Debug/test aid — not part of the frozen contract."""
         return len(self._people)
+
+    def person_floors(self) -> dict[int, str]:
+        """pid -> current floor id. Debug/test aid — not part of the frozen contract."""
+        return {pid: self._person_floor(p) for pid, p in self._people.items()}
 
     def step(self, dt_s: float) -> list[Observation]:
         """Advance the world by dt_s. Returns observations produced during
@@ -187,12 +218,14 @@ class Simulation:
             if seg <= 1e-9:  # degenerate edge; skip it
                 self._arrive(p)
                 continue
+            # Stairs edges are climbed at ~0.6 m/s regardless of walking speed.
+            spd = STAIRS_SPEED_MPS if self._is_stairs(p.route[p.leg], p.route[p.leg + 1]) else p.speed_mps
             remaining = seg - p.along_m
-            if p.speed_mps * t < remaining:
-                p.along_m += p.speed_mps * t
+            if spd * t < remaining:
+                p.along_m += spd * t
                 t = 0.0
             else:
-                t -= remaining / p.speed_mps
+                t -= remaining / spd
                 self._arrive(p)
 
     def _arrive(self, p: _Person) -> None:
@@ -264,35 +297,55 @@ class Simulation:
 
     # -- geometry -----------------------------------------------------------
 
+    def _is_stairs(self, a: str, b: str) -> bool:
+        return frozenset((a, b)) in self._stairs_edges
+
+    def _person_floor(self, p: _Person) -> str:
+        """Current floor id — on a stairs edge it flips at the edge midpoint
+        (the floor of the endpoint the walker is nearest along the edge)."""
+        if p.leg >= len(p.route) - 1:
+            return self._wp_floor[p.route[-1]]
+        a, b = p.route[p.leg], p.route[p.leg + 1]
+        fa, fb = self._wp_floor[a], self._wp_floor[b]
+        if fa == fb:
+            return fa
+        seg = math.dist(self._wp[a], self._wp[b])
+        return fa if p.along_m < seg / 2.0 else fb
+
     def _position(self, p: _Person) -> tuple[float, float]:
         """True position: along-edge point + tapered lateral offset.
 
         The taper zeroes the offset near waypoints (no jump when the edge —
         and hence the perpendicular — changes) and the shrink loop guarantees
-        the point stays inside the walkable union.
+        the point stays inside the current floor's walkable union. On stairs
+        edges heading jitter is suppressed: the on-edge point is returned.
         """
         if p.leg >= len(p.route) - 1:
             return self._wp[p.route[-1]]
-        ax, ay = self._wp[p.route[p.leg]]
-        bx, by = self._wp[p.route[p.leg + 1]]
+        a, b = p.route[p.leg], p.route[p.leg + 1]
+        ax, ay = self._wp[a]
+        bx, by = self._wp[b]
         seg = math.dist((ax, ay), (bx, by))
         if seg <= 1e-9:
             return (ax, ay)
         ux, uy = (bx - ax) / seg, (by - ay) / seg
         x, y = ax + ux * p.along_m, ay + uy * p.along_m
+        if self._is_stairs(a, b):
+            return (x, y)  # jitter suppressed on stairs (contract)
         taper = max(0.0, min(1.0, p.along_m / 2.0, (seg - p.along_m) / 2.0))
         lat = p.lateral_m * taper
+        floor = self._wp_floor[a]  # non-stairs edges never change floor
         for shrink in (1.0, 0.5, 0.25, 0.0):
             cx, cy = x - uy * lat * shrink, y + ux * lat * shrink
-            if self._walkable(cx, cy):
+            if self._walkable(floor, cx, cy):
                 return (cx, cy)
         return (x, y)  # on-edge point is always walkable by plan construction
 
-    def _walkable(self, x: float, y: float) -> bool:
+    def _walkable(self, floor: str, x: float, y: float) -> bool:
         eps = 1e-9
         return any(
             rx - eps <= x <= rx + rw + eps and ry - eps <= y <= ry + rh + eps
-            for rx, ry, rw, rh in self._rects
+            for rx, ry, rw, rh in self._rects[floor]
         )
 
     # -- observation model ---------------------------------------------------
@@ -301,6 +354,8 @@ class Simulation:
         rng = self._rng
         out: list[Observation] = []
         for pid, person in self._people.items():
+            if self._person_floor(person) != cam.floor:
+                continue  # cameras never see other floors (events invariant 3)
             px, py = self._position(person)
             dx, dy = px - cam.x, py - cam.y
             dist = math.hypot(dx, dy)
