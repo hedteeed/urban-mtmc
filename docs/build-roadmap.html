@@ -1,0 +1,297 @@
+<title>Urban MTMC — The Exact Build Roadmap</title>
+<style>
+  :root {
+    --bg: #0c0a06; --panel: #161209; --panel-2: #1c170c; --line: #33290f;
+    --ink: #eae3d2; --muted: #b0a488; --faint: #7d7154;
+    --accent: #ffd24d;       /* execution gold */
+    --repo: #00e5ff; --sim: #3ddc84; --done: #46e6a0; --now: #ffd24d;
+    --later: #7d7154; --crit: #ff5d7a; --you: #ff9d54;
+    --display: "Avenir Next Condensed", "AvenirNextCondensed-DemiBold", "Arial Narrow", "Helvetica Neue", sans-serif;
+    --body: "Charter", "Iowan Old Style", "Palatino", Georgia, serif;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Cascadia Mono", monospace;
+  }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body { background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 17px; line-height: 1.7; margin: 0; }
+  .wrap { max-width: 76ch; margin: 0 auto; padding: 0 24px 96px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+  header { padding: 72px 0 40px; border-bottom: 1px solid var(--line); }
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--accent); margin: 0 0 18px; }
+  h1 { font-family: var(--display); font-weight: 600; font-size: clamp(38px, 6.5vw, 58px); line-height: 1.03; margin: 0 0 20px; text-transform: uppercase; text-wrap: balance; }
+  h1 .dim { color: var(--faint); }
+  .standfirst { font-size: 19px; color: var(--muted); margin: 0 0 28px; max-width: 63ch; }
+  .standfirst strong { color: var(--ink); }
+  .meta-chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; border: 1px solid var(--line); border-radius: 3px; padding: 5px 10px; color: var(--muted); }
+  .chip b { color: var(--ink); font-weight: 500; }
+
+  .legend { display:flex; flex-wrap:wrap; gap:14px; padding: 22px 0; border-bottom: 1px solid var(--line); font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .swatch { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+  .phase { margin-top: 56px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); overflow: hidden; }
+  .phase-head { padding: 20px 24px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+  .phase-num { font-family: var(--mono); font-size: 12px; letter-spacing: .18em; color: var(--faint); }
+  .phase-head h2 { font-family: var(--display); font-weight: 600; font-size: 26px; text-transform: uppercase; margin: 0; flex: 1; }
+  .status { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; border-radius: 3px; padding: 4px 9px; }
+  .status.done  { color: var(--done); background: rgba(70,230,160,.08); border: 1px solid rgba(70,230,160,.35); }
+  .status.now   { color: var(--now); background: rgba(255,210,77,.09); border: 1px solid rgba(255,210,77,.4); }
+  .status.next  { color: var(--ink); background: rgba(255,255,255,.04); border: 1px solid var(--line); }
+  .status.later { color: var(--later); border: 1px solid var(--line); }
+  .phase-body { padding: 18px 24px 22px; }
+  .phase-body p { margin: 0 0 14px; max-width: 66ch; }
+  .phase-body ol { margin: 0 0 16px; padding-left: 22px; }
+  .phase-body li { margin-bottom: 9px; max-width: 64ch; }
+  strong { color: #fff; font-weight: 600; }
+  code { font-family: var(--mono); font-size: .82em; color: #ffe9a8; background: rgba(255,210,77,.07); border: 1px solid rgba(255,210,77,.15); border-radius: 3px; padding: 1px 5px; white-space: nowrap; }
+  .rows { border-top: 1px solid var(--line); }
+  .row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; padding: 10px 24px; border-bottom: 1px solid var(--line); font-size: 14.5px; }
+  .row:last-child { border-bottom: none; }
+  .row .k { font-family: var(--mono); font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); padding-top: 2px; }
+  .row .v { color: var(--muted); }
+  .row .v b, .row .v strong { color: var(--ink); }
+  .you { color: var(--you); font-weight: 600; }
+  .me { color: var(--done); font-weight: 600; }
+
+  .tbl-scroll { overflow-x: auto; margin: 24px 0; border: 1px solid var(--line); border-radius: 4px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th { font-family: var(--mono); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); text-align: left; padding: 10px 14px; background: var(--panel-2); border-bottom: 1px solid var(--line); white-space: nowrap; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; color: var(--muted); }
+  tr:last-child td { border-bottom: none; }
+  td:first-child { color: var(--ink); }
+  .num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+  .pill { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; border-radius: 3px; padding: 3px 8px; white-space: nowrap; display: inline-block; }
+  .pill.ok   { color: var(--done); background: rgba(70,230,160,.08); border: 1px solid rgba(70,230,160,.3); }
+  .pill.warn { color: var(--you); background: rgba(255,157,84,.08); border: 1px solid rgba(255,157,84,.3); }
+  .pill.crit { color: var(--crit); background: rgba(255,93,122,.08); border: 1px solid rgba(255,93,122,.3); }
+
+  h3.sec { font-family: var(--display); font-weight: 600; font-size: 24px; text-transform: uppercase; letter-spacing: .02em; margin: 64px 0 6px; }
+  .sec-sub { color: var(--muted); font-style: italic; margin: 0 0 10px; }
+
+  footer { margin-top: 80px; padding-top: 28px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 11px; letter-spacing: .08em; color: var(--faint); display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+</style>
+
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">Vol 4 · the operational plan · updated as we ship</p>
+  <h1>The exact build roadmap<span class="dim"> — first this, by doing that</span></h1>
+  <p class="standfirst">Every phase: <strong>what we build, the exact doing, what data feeds it, and the test that says "done."</strong> Split between <span class="you">YOU</span> (physical world: cameras, walking, clicking, permissions) and <span class="me">ME</span> (all code). Phases 0–1 are real — this doc reflects the repo as it stands, not a fantasy plan.</p>
+  <div class="meta-chips">
+    <span class="chip">repo: <b>github.com/hedteeed/urban-mtmc</b></span>
+    <span class="chip">P0 <b>SHIPPED</b> · P1 <b>IN FLIGHT</b></span>
+    <span class="chip">companion: Vols 1–3 (theory + mechanics)</span>
+  </div>
+</header>
+
+<div class="legend">
+  <span><span class="swatch" style="background:var(--done)"></span> shipped</span>
+  <span><span class="swatch" style="background:var(--now)"></span> building now</span>
+  <span><span class="swatch" style="background:#fff;opacity:.25"></span> next up</span>
+  <span><span class="swatch" style="background:var(--later)"></span> later</span>
+  <span class="you">YOU = physical tasks</span>
+  <span class="me">ME = code</span>
+</div>
+
+<!-- P0 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 0</span><h2>Simulator + dashboard</h2><span class="status done">Shipped ✓</span></div>
+  <div class="phase-body">
+    <p><strong>What we built:</strong> a fake world so every later phase has a test bench. Two-floor house plan, ~12 simulated people walking a waypoint graph, 6 virtual cameras that "observe" with realistic noise, dropout, and tracker-style per-camera IDs — streaming over WebSocket into a live two-panel floor-plan dashboard.</p>
+    <p><strong>How it was done:</strong> froze the event schema first (5 written invariants — the contract every future real camera must also speak), then three parallel builds against it, then an adversarial review that caught a runtime-only WebSocket blocker the tests missed.</p>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">None — synthetic by construction (the mantis <code>synth.py</code> lesson)</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Dots glide in cones; ground-truth toggle shows continuous paths crossing the blind gap ✓ passed live</span></div>
+    <div class="row"><span class="k">Keeps giving</span><span class="v">The fusion engine (P6) will be tuned against this sim first — ground truth is free here, priceless later</span></div>
+  </div>
+</div>
+
+<!-- P1 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 1</span><h2>First real camera</h2><span class="status now">Building now</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> your Mac webcam becomes <code>live0</code> — a real detector's output flowing through the exact same event stream and dashboard as the sim.</p>
+    <ol>
+      <li><span class="me">ME</span> — fetch COCO-pretrained <strong>YOLOX-S</strong> as ONNX (Apache-2.0, sha256-pinned, provenance printed). No training: 118k images already taught it what a person looks like.</li>
+      <li><span class="me">ME</span> — port the 5-step inference (letterbox 640 → forward → obj×class → un-letterbox → NMS 0.7, person class only) to ONNX Runtime, numpy only.</li>
+      <li><span class="me">ME</span> — camera worker thread: grab frames, detect at ~5 fps, emit contract Observations, keep annotated JPEG for a live video tile in the dashboard.</li>
+      <li><span class="you">YOU</span> — click <strong>Allow</strong> on the macOS camera permission, then walk in front of the laptop.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">Pretrained weights only (COCO). Nothing recorded, nothing labeled.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">You appear in the camera tile with a box + confidence following you at ~5 fps</span></div>
+    <div class="row"><span class="k">Honest gap</span><span class="v">No tracker yet → new ID every frame. No calibration → no dot on the plan. Both deliberate; next two phases.</span></div>
+  </div>
+</div>
+
+<!-- P2 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 2</span><h2>Real tracking — stable IDs</h2><span class="status next">Next</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> ByteTrack (MIT implementation) between detector and event stream, so one human = one persistent <code>track_id</code>.</p>
+    <ol>
+      <li><span class="me">ME</span> — Kalman filter per track (predict-then-correct, the Vol 3 §04 math), Hungarian assignment, ByteTrack's two-pass trick: match confident detections first, then rescue occluded people from the low-confidence leftovers.</li>
+      <li><span class="me">ME</span> — lower the detector feed threshold to ~0.1 (round 2 fuel), expose <code>track_thresh / match_thresh / track_buffer</code> as flags.</li>
+      <li><span class="you">YOU</span> — the tuning loop: walk behind a chair/door frame, watch whether your ID survives. We adjust <code>track_buffer</code> to your room's occlusions together.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">None. Trackers are algorithms, not models — tuned live, not trained.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v"><strong>Pillar test:</strong> walk behind furniture, emerge, same ID ≥ 8/10 times. Sidebar tracklet count ≈ people count, not 5×/second inflation.</span></div>
+  </div>
+</div>
+
+<!-- P3 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 3</span><h2>Calibration — dot on YOUR floor plan</h2><span class="status next">Next</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> the homography (Vol 3 §07's one matrix multiply) that turns your feet-pixel into a floor-plan point. First phase where the real camera puts a <em>dot on the map</em>.</p>
+    <ol>
+      <li><span class="you">YOU</span> — tape measure: sketch your room to scale (I turn it into a plan.json floor). Mark 8+ floor points you can see on camera (tile corners, furniture feet) and measure their positions.</li>
+      <li><span class="me">ME</span> — a click-to-calibrate UI: camera frame beside floor plan, click each point in both, <code>cv2.findHomography(RANSAC)</code>, reprojection error shown live (target &lt;0.3 m). Saved per camera. The mantis CalibrationPanel idea, rebuilt for homographies.</li>
+      <li><span class="me">ME</span> — project each track's <strong>box bottom-center</strong> (the feet) through the matrix → <code>floor_xy</code> stops being null → dashboard dots appear, real ones.</li>
+      <li><span class="you">YOU</span> — verification walk: stand on 4 known spots, we check the dot lands within ~0.5 m of each.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">8+ clicked point-pairs per camera. One-time, ~15 min per camera.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">You walk your room; your dot walks the plan, ≤ ~0.5 m error at the known spots</span></div>
+  </div>
+</div>
+
+<!-- P4 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 4</span><h2>Second camera + overlap fusion</h2><span class="status next">Soon</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> a second viewpoint (old phone running an RTSP app, ~free) with its own calibration; where views overlap, two dots for one person become one — by geometry alone, no appearance needed.</p>
+    <ol>
+      <li><span class="you">YOU</span> — install an RTSP camera app on any old phone, mount it (shelf + tape is fine) seeing part of camera 1's area. Both devices on NTP (I script it).</li>
+      <li><span class="me">ME</span> — multi-source server (N camera workers), per-camera calibration, then <strong>geometric fusion</strong>: dots from different cameras within a tolerance radius (~0.5 m) on the plan merge into one displayed person.</li>
+      <li><span class="you">YOU</span> — stand in the overlap zone during tuning: too-tight radius shows you doubled, too-loose merges you with a second person standing close. We find your building's number.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">Second camera's 8+ calibration clicks; a few two-person walk tests</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">One person in the overlap = one dot; two people close together = two dots</span></div>
+  </div>
+</div>
+
+<!-- P5 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 5</span><h2>Re-ID — the appearance fingerprint</h2><span class="status later">Later</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> OSNet embedder (via torchreid, MIT) turning each person-crop into a 512-number signature; per-track running template (EMA). First test is single-camera: leave the room, come back, get your <em>old</em> ID back instead of a new one.</p>
+    <ol>
+      <li><span class="me">ME</span> — pretrained OSNet on the crop stream, quality gates (min height, edge crops rejected), EMA template per tracklet, cosine matching of new tracks against recently-dead ones.</li>
+      <li><span class="you">YOU</span> — re-entry trials: exit frame 30s, return. Also the hard case: you + someone in similar clothes, swap test.</li>
+      <li><span class="me">ME</span> — threshold sweep tooling: we plot match-rate vs mistake-rate from your trials and pick the operating point (the fragmentation-vs-collision dial from Vol 2 §05 — now it's YOUR dial on YOUR data).</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">Pretrained Re-ID weights (research-only — fine for prototype, flagged for product). Your re-entry trial recordings for threshold tuning.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Re-acquisition: leave + return = old ID ≥ 8/10; look-alike test documented honestly</span></div>
+  </div>
+</div>
+
+<!-- P6 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 6</span><h2>Cross-camera engine — the product core</h2><span class="status later">The hard one</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> the piece nothing on GitHub gives you: tracklets from all cameras clustered into global IDs under physics constraints. One human = one dot, across blind gaps.</p>
+    <ol>
+      <li><span class="you">YOU</span> — stopwatch afternoon: walk every camera-to-camera route ~5 times; I record transit-time distributions (the topology graph — highest-leverage hour in the whole project).</li>
+      <li><span class="me">ME</span> — the engine: sliding 30–60 s window, hard gates first (impossible transits killed regardless of appearance), fused edge scores (appearance ~50% / space-time ~35% / motion ~15%), agglomerative clustering with cannot-links, global ID gallery with expiry. <strong>Tuned against the P0 simulator first</strong> — free ground truth — then on real walks.</li>
+      <li><span class="you">YOU</span> — the loop walk: cam1 room → hallway blind gap → cam2 room, 10 times. Also the adversarial version with a similarly-dressed second person.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">Transit-time walks; ~10 labeled loop-walk recordings (I build the tiny labeling tool)</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Loop walk keeps ONE global ID ≥ 8/10 — this is the demo that wins hackathons and pilots</span></div>
+  </div>
+</div>
+
+<!-- P7 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 7</span><h2>Training round A — YOUR detector</h2><span class="status later">First real training</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> until here, zero training — all pretrained + algorithms + geometry. Now we fine-tune YOLOX-S on your actual cameras, because pretrained stumbles on your exact angles/lighting.</p>
+    <ol>
+      <li><span class="you">YOU</span> — record per camera: one quiet clip, one busy clip, hard cases (occlusions, sitting). ~15 min each.</li>
+      <li><span class="me">ME</span> — CVAT labeling setup; <span class="you">YOU</span> label ~1 evening per camera (boxes every 10th frame, full-extent convention). 2–5k boxes total.</li>
+      <li><span class="me">ME</span> — the mantis-style data pipeline (adapters → COCO + provenance tags → dedup → <strong>per-sequence split</strong>), then fine-tune: start from COCO weights, lr ÷10, ~40–60 epochs, MLflow-tracked, per-camera mAP eval. Includes building the provenance enforcement mantis only documented.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v"><b>Model:</b> YOLOX-S · <b>trained on:</b> your labeled footage (yours, GDPR-clean) · CrowdHuman only as prototype benchmark, never shipped</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Per-camera mAP@50 ≥ 0.85 on held-out clips; visibly fewer misses in your worst lighting</span></div>
+  </div>
+</div>
+
+<!-- P8 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 8</span><h2>Training round B — YOUR Re-ID</h2><span class="status later">Self-bootstrapped</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> fine-tune OSNet on your own cameras using the self-bootstrapping trick — <strong>the P2 tracker manufactures the training data</strong>: every clean track = one identity photographed dozens of times, zero manual labels for same-camera pairs.</p>
+    <ol>
+      <li><span class="me">ME</span> — harvest crops from confident tracks (quality-gated), auto-build identities, triplet + ID loss fine-tune with random-erasing (the occlusion augmentation your house demands).</li>
+      <li><span class="you">YOU</span> — confirm/reject the cross-camera candidate pairs the system proposes (~30 min).</li>
+      <li><span class="me">ME</span> — re-tune the P5/P6 thresholds on the new embedder; measure cross-camera IDF1 on the P6 labeled walks before/after.</li>
+    </ol>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v"><b>Model:</b> OSNet · <b>trained on:</b> tracker-harvested crops from your cameras + your confirmations. Clean provenance end to end.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Loop-walk success rises measurably (e.g. 8/10 → 9-10/10); look-alike failures reduced and documented</span></div>
+  </div>
+</div>
+
+<!-- P9 -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 9</span><h2>Harden toward a real deployment</h2><span class="status later">Product mode</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> from "works when we watch it" to "runs for weeks": 4–6 cameras, auth on every endpoint, camera-down alerts, retention deletion, health dashboard beside the people dashboard, soak + chaos tests (kill a camera mid-run), GDPR paperwork (DPIA draft, signage) if it ever watches anyone but you.</p>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v">Days of soak logs — the system watching itself</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">One week unattended, zero crashes, a yanked camera alerts within 10 s, latency &lt; 2 s under load</span></div>
+  </div>
+</div>
+
+<h3 class="sec">The data ladder</h3>
+<p class="sec-sub">Which model learns from what, at each rung — the "train y on z" answer in one table.</p>
+<div class="tbl-scroll"><table>
+  <thead><tr><th>Rung</th><th>Model</th><th>Data</th><th>Status / legality</th></tr></thead>
+  <tbody>
+    <tr><td>P1</td><td class="num">YOLOX-S detector</td><td>COCO pretrained — no training by us</td><td><span class="pill ok">Apache-2.0, clean</span></td></tr>
+    <tr><td>P2–P4</td><td class="num">none</td><td>Algorithms + geometry — tuned live, never trained</td><td><span class="pill ok">MIT tools</span></td></tr>
+    <tr><td>P5</td><td class="num">OSNet Re-ID</td><td>Market-1501-pretrained weights</td><td><span class="pill warn">Research-only — prototype use, flagged</span></td></tr>
+    <tr><td>P7</td><td class="num">YOLOX-S fine-tune</td><td>YOUR labeled footage (2–5k boxes), per-sequence split, provenance-tagged</td><td><span class="pill ok">Yours — shippable</span></td></tr>
+    <tr><td>P8</td><td class="num">OSNet fine-tune</td><td>Tracker-harvested crops (self-bootstrap) + your pair confirmations</td><td><span class="pill ok">Yours — shippable</span></td></tr>
+    <tr><td>Product</td><td class="num">both, retrained</td><td>Own + synthetic + commercially licensed only; research weights never shipped</td><td><span class="pill crit">Enforced at train launch (the mantis gap, closed)</span></td></tr>
+  </tbody>
+</table></div>
+
+<h3 class="sec">Why this order and no other</h3>
+<p class="sec-sub">Each phase's output is the next phase's input — the dependency chain is the argument.</p>
+<div class="tbl-scroll"><table>
+  <thead><tr><th>Without…</th><th>…you cannot</th></tr></thead>
+  <tbody>
+    <tr><td>P0 simulator</td><td>tune P6's fusion engine against known ground truth (real ground truth costs a labeling day per clip)</td></tr>
+    <tr><td>P1 detections</td><td>track anything — no tracker can recover a person never detected</td></tr>
+    <tr><td>P2 stable tracks</td><td>build Re-ID templates (P5) or harvest Re-ID training data (P8) — the tracklet is the atomic unit</td></tr>
+    <tr><td>P3 calibration</td><td>fuse anything geometrically (P4) or gate by space-time (P6) — no shared map, no physics</td></tr>
+    <tr><td>P5 appearance</td><td>bridge blind gaps (P6) — geometry can't see across them</td></tr>
+    <tr><td>P6 working end-to-end</td><td>know what P7/P8 training should fix — you train against measured failures, not vibes</td></tr>
+  </tbody>
+</table></div>
+
+<footer>
+  <span>THE EXACT BUILD ROADMAP · VOL 4 · LIVING DOC · 2026-07-03</span>
+  <span>P0 SHIPPED · P1 IN FLIGHT</span>
+</footer>
+
+</div>
