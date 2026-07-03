@@ -209,18 +209,21 @@
 
 <!-- P5 -->
 <div class="phase">
-  <div class="phase-head"><span class="phase-num">PHASE 5</span><h2>Re-ID — the appearance fingerprint</h2><span class="status later">Later</span></div>
+  <div class="phase-head"><span class="phase-num">PHASE 5</span><h2>Re-ID — the appearance fingerprint <span style="font-size:.6em;color:var(--faint)">+ attribute gates</span></h2><span class="status later">Later</span></div>
   <div class="phase-body">
-    <p><strong>What:</strong> OSNet embedder (via torchreid, MIT) turning each person-crop into a 512-number signature; per-track running template (EMA). First test is single-camera: leave the room, come back, get your <em>old</em> ID back instead of a new one.</p>
+    <p><strong>What:</strong> recognise the same person by appearance — as a <em>cascade of gates, cheapest first</em>, not one black box. The deep embedding is the fine tool; explicit interpretable features (height, clothing colour) are a cheaper, independent gate in front of it — and the one that survives a dark blind-zone.</p>
     <ol>
-      <li><span class="me">ME</span> — pretrained OSNet on the crop stream, quality gates (min height, edge crops rejected), EMA template per tracklet, cosine matching of new tracks against recently-dead ones.</li>
-      <li><span class="you">YOU</span> — re-entry trials: exit frame 30s, return. Also the hard case: you + someone in similar clothes, swap test.</li>
-      <li><span class="me">ME</span> — threshold sweep tooling: we plot match-rate vs mistake-rate from your trials and pick the operating point (the fragmentation-vs-collision dial from Vol 2 §05 — now it's YOUR dial on YOUR data).</li>
+      <li><span class="me">ME</span> — <strong>Deep fingerprint:</strong> OSNet embedder (torchreid, MIT) → 512-number signature per crop, quality-gated (min height, edge crops rejected), EMA running template per tracklet.</li>
+      <li><span class="me">ME</span> — <strong>Soft-biometric attribute gate</strong> (the new layer you asked for): (a) <em>real-world height</em> from head-to-foot pixels projected through the P3/P4A calibration — view-invariant, survives clothing change, and survives darkness because it's geometric not photometric; (b) <em>clothing colour</em> as lighting-normalised torso/leg histograms — a cheap coarse filter. These run <em>before</em> the embedder to prune candidates, and their verdict is human-readable ("matched: 1.82 m + red torso"), which the black-box vector can't give.</li>
+      <li><span class="me">ME</span> — <strong>Fuse the cascade:</strong> physics (transit time) → attribute gate (height/colour) → embedding disambiguates the survivors. More independent signals = a handoff that holds when any one signal is wrecked (colour dies in the dark; height doesn't).</li>
+      <li><span class="you">YOU</span> — re-entry + dark-zone trials: exit 30 s and return; walk through the unlit/blind stretch; the hard case (you + someone in similar clothes but different height — attribute gate should split you where colour alone can't).</li>
+      <li><span class="me">ME</span> — threshold sweep per signal: match-rate vs mistake-rate for embedding, height tolerance (±cm), colour distance — pick each operating point on YOUR data (the fragmentation-vs-collision dial, now one dial per gate).</li>
     </ol>
+    <p><strong>Why cascade, not one embedding:</strong> the OSNet vector already implicitly encodes colour and shape — but explicit attributes add three things it can't: <em>interpretability</em> (auditable "why" for a security product), <em>independence</em> (height is geometry, not pixels — different failure modes), and a <em>cheap pre-filter</em> (histogram compare is nearly free vs running the embedder). Height is the standout: hard to fake, survives clothing change and darkness — a genuine soft biometric.</p>
   </div>
   <div class="rows">
-    <div class="row"><span class="k">Data</span><span class="v">Pretrained Re-ID weights (research-only — fine for prototype, flagged for product). Your re-entry trial recordings for threshold tuning.</span></div>
-    <div class="row"><span class="k">Done test</span><span class="v">Re-acquisition: leave + return = old ID ≥ 8/10; look-alike test documented honestly</span></div>
+    <div class="row"><span class="k">Data</span><span class="v">Pretrained Re-ID weights (research-only — flagged). Height needs P3/P4A calibration (metres, not pixels). Colour + your re-entry/dark-zone trials for threshold tuning. No training — all pretrained + geometry.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Re-acquisition ≥ 8/10; dark-zone handoff holds where colour fails but height carries it; two similar-clothed people of different height are kept apart</span></div>
   </div>
 </div>
 
@@ -332,7 +335,8 @@
     <tr><td>P2 stable tracks</td><td>build Re-ID templates (P5) or harvest Re-ID training data (P8) — the tracklet is the atomic unit</td></tr>
     <tr><td>P3 calibration</td><td>fuse anything geometrically (P4) or gate by space-time (P6) — no shared map, no physics</td></tr>
     <tr><td>P4 multi-camera tracks</td><td>learn the floor plan from footfall (P4A) — one camera's paths aren't enough to map a building</td></tr>
-    <tr><td>P5 appearance</td><td>bridge blind gaps (P6), OR carry a face-label across cameras (P5A) — geometry can't see across them</td></tr>
+    <tr><td>P3/P4A calibration</td><td>compute real-world <b>height</b> as a Re-ID attribute gate (P5) — pixel-height is view-dependent; metric height needs the ground plane</td></tr>
+    <tr><td>P5 appearance (embedding + attribute gates)</td><td>bridge blind gaps (P6), OR carry a face-label across cameras (P5A) — geometry can't see across them; height carries identity through dark zones colour can't</td></tr>
     <tr><td>P5A named identity</td><td>label a dot "the client" — the anonymous tracker (P2/P6) must exist first to attach a name to</td></tr>
     <tr><td>P6 working end-to-end</td><td>know what P7/P8 training should fix — you train against measured failures, not vibes</td></tr>
   </tbody>
