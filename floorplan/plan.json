@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "name": "demo-mall",
+  "size_m": [60, 30],
+  "coordinate_note": "metres; origin top-left; x right; y down; yaw_deg 0 = +x (east), positive clockwise",
+
+  "walkable": [
+    { "x": 0, "y": 12, "w": 60, "h": 6, "name": "main corridor" },
+    { "x": 27, "y": 0, "w": 6, "h": 12, "name": "north corridor" },
+    { "x": 40, "y": 18, "w": 20, "h": 12, "name": "atrium" }
+  ],
+
+  "shops": [
+    { "x": 2, "y": 7, "w": 10, "h": 5, "name": "S1" },
+    { "x": 14, "y": 7, "w": 11, "h": 5, "name": "S2" },
+    { "x": 35, "y": 7, "w": 10, "h": 5, "name": "S3" },
+    { "x": 47, "y": 7, "w": 11, "h": 5, "name": "S4" },
+    { "x": 2, "y": 18, "w": 16, "h": 5, "name": "S5" },
+    { "x": 20, "y": 18, "w": 16, "h": 5, "name": "S6" },
+    { "x": 21, "y": 1, "w": 5, "h": 10, "name": "S7" },
+    { "x": 34, "y": 1, "w": 5, "h": 10, "name": "S8" }
+  ],
+
+  "waypoints": {
+    "W":  [1, 15],
+    "A":  [10, 15],
+    "B":  [20, 15],
+    "C":  [30, 15],
+    "D":  [40, 15],
+    "E":  [50, 15],
+    "F":  [59, 15],
+    "N2": [30, 10],
+    "N1": [30, 5],
+    "N0": [30, 1],
+    "G":  [46, 22],
+    "H":  [53, 26]
+  },
+  "edges": [
+    ["W", "A"], ["A", "B"], ["B", "C"], ["C", "D"], ["D", "E"], ["E", "F"],
+    ["C", "N2"], ["N2", "N1"], ["N1", "N0"],
+    ["D", "G"], ["E", "G"], ["G", "H"]
+  ],
+  "entrances": ["W", "F", "N0"],
+  "dwell_points": ["B", "G", "H", "N1"],
+
+  "cameras": [
+    { "id": "cam1", "pos": [2, 13],    "yaw_deg": 15,  "fov_deg": 70, "range_m": 12 },
+    { "id": "cam2", "pos": [14, 17],   "yaw_deg": -15, "fov_deg": 70, "range_m": 12 },
+    { "id": "cam3", "pos": [31.5, 11], "yaw_deg": -90, "fov_deg": 70, "range_m": 6 },
+    { "id": "cam4", "pos": [29, 0.5],  "yaw_deg": 90,  "fov_deg": 70, "range_m": 3 },
+    { "id": "cam5", "pos": [41, 13],   "yaw_deg": 20,  "fov_deg": 70, "range_m": 12 },
+    { "id": "cam6", "pos": [59, 17],   "yaw_deg": 160, "fov_deg": 70, "range_m": 13 }
+  ],
+
+  "notes": {
+    "overlap_zone": "cam5+cam6 both cover main corridor x≈46–53 — geometric fusion test bed (M5)",
+    "blind_gap": "north corridor y≈3.5–5 between cam4 and cam3 — cross-camera handoff test bed (M6)",
+    "junction_blind": "main corridor x≈26–41 around the junction is largely uncovered — deliberate"
+  }
+}
