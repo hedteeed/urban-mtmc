@@ -79,14 +79,19 @@
 <header>
   <p class="eyebrow">Vol 4 · the operational plan · updated as we ship</p>
   <h1>The exact build roadmap<span class="dim"> — first this, by doing that</span></h1>
-  <p class="standfirst">Every phase: <strong>what we build, the exact doing, what data feeds it, and the test that says "done."</strong> Split between <span class="you">YOU</span> (physical world: cameras, walking, clicking, permissions) and <span class="me">ME</span> (all code). Phases 0–1 are real — this doc reflects the repo as it stands, not a fantasy plan.</p>
+  <p class="standfirst">Every phase: <strong>what we build, the exact doing, what data feeds it, and the test that says "done."</strong> Split between <span class="you">YOU</span> (physical world: cameras, walking, clicking, permissions) and <span class="me">ME</span> (all code). The target: hand the system an <strong>authorized</strong> camera feed → it learns the floor plan from the footage, tracks everyone on one live dashboard, and labels enrolled people (you, the client, their son, a named person of interest) by name in real time. Phases 0–2 are shipped and verified live — this doc reflects the repo as it stands, not a fantasy plan.</p>
   <div class="meta-chips">
     <span class="chip">repo: <b>github.com/hedteeed/urban-mtmc</b></span>
     <span class="chip">P2 verified live: <b>pillar test 4/5, ID survives occlusion</b></span>
-    <span class="chip">P0–P2 <b>SHIPPED</b> · P3 <b>NEXT</b></span>
+    <span class="chip">P0–P2 <b>SHIPPED</b> · P3 <b>NEXT</b> · +2 new phases</span>
     <span class="chip">companion: Vols 1–3 (theory + mechanics)</span>
   </div>
 </header>
+
+<div style="margin-top:26px;border:1px solid rgba(255,93,122,.35);border-left:3px solid var(--crit);border-radius:0 4px 4px 0;background:rgba(255,93,122,.05);padding:14px 18px;">
+  <b style="font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--crit);display:block;margin-bottom:6px;">Authorized use only</b>
+  <span style="color:var(--muted);font-size:14.5px;">Named-face identification (P5A) runs solely on camera systems the operator is authorized to access, against a gallery of known people enrolled with consent, for authorized deployments. The public/mall configuration runs anonymous tracking with faces off. No matching against external or scraped databases in any configuration — enforced in config, not just documented.</span>
+</div>
 
 <div class="legend">
   <span><span class="swatch" style="background:var(--done)"></span> shipped</span>
@@ -182,6 +187,26 @@
   </div>
 </div>
 
+<!-- P4A AUTO-CAL -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 4A</span><h2>Floor plan from the feed alone</h2><span class="status later">New · the "walks in and learns the building" phase</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> point the system at an authorized camera system it has never seen and have it <em>learn the geometry itself</em> — no tape measure, no clicking. This is the "hand it to a client, it figures out their space" capability.</p>
+    <p><strong>The honest decomposition</strong> — three sub-problems, very different difficulty:</p>
+    <ol>
+      <li><span class="me">ME</span> — <strong>Walkable map from footfall</strong> (fully achievable, killer demo): accumulate every tracked person's foot-path over time; where people walk becomes floor, walls emerge as the voids nobody crosses. The map <em>draws itself</em> — corridors light up as rivers of traffic. Pure statistics, zero training.</li>
+      <li><span class="me">ME</span> — <strong>Auto-calibration from people</strong> (achievable, published technique): humans are the ruler. Average adult height ≈1.7 m; watching heads-and-feet across many walks recovers each camera's tilt and metres-per-pixel automatically, replacing P3's clicked points as footage accumulates.</li>
+      <li><span class="me">ME</span> — <strong>Camera topology</strong> (already P6): which camera connects to which, and transit times, learned from handoff co-occurrence statistics.</li>
+    </ol>
+    <p><strong>The honest ceiling:</strong> this produces an accurate <em>walkable map + real-world positions</em> — "which corridor, which room-mouth" — not an architect's blueprint of walls and doors. True wall reconstruction from fixed cameras alone is unsolved without depth sensors; we don't promise it. P3's manual calibration stays as the ground-truth yardstick this auto system is graded against.</p>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v"><b>No training.</b> Per-site statistics from the client's own feed (hours of footfall). The simulator generates infinite synthetic layouts to validate the algorithm for free.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">On a fresh camera set with no manual input, the learned walkable map + positions land within ~1 m of the P3 hand-calibrated truth</span></div>
+    <div class="row"><span class="k">Key insight</span><span class="v">Layout is <b>estimated per site from statistics</b>, never learned into model weights — so no "dataset of many buildings" is needed; the detector/Re-ID are layout-agnostic</span></div>
+  </div>
+</div>
+
 <!-- P5 -->
 <div class="phase">
   <div class="phase-head"><span class="phase-num">PHASE 5</span><h2>Re-ID — the appearance fingerprint</h2><span class="status later">Later</span></div>
@@ -196,6 +221,25 @@
   <div class="rows">
     <div class="row"><span class="k">Data</span><span class="v">Pretrained Re-ID weights (research-only — fine for prototype, flagged for product). Your re-entry trial recordings for threshold tuning.</span></div>
     <div class="row"><span class="k">Done test</span><span class="v">Re-acquisition: leave + return = old ID ≥ 8/10; look-alike test documented honestly</span></div>
+  </div>
+</div>
+
+<!-- P5A FACE -->
+<div class="phase">
+  <div class="phase-head"><span class="phase-num">PHASE 5A</span><h2>Named people — the enrolled gallery</h2><span class="status later">New · authorized deployments only</span></div>
+  <div class="phase-body">
+    <p><strong>What:</strong> turn an anonymous dot into a <em>named</em> dot. You give the system a photo of a known person — yourself, the client, their son, a specified person of interest — and when a camera gets a clear look at that face, the dot is labelled with their name and stays labelled as they move through the building.</p>
+    <ol>
+      <li><span class="me">ME</span> — <strong>face detector</strong> (finds faces in frame) → <strong>face embedder</strong> (ArcFace-family → a 512-number face signature) → cosine match against an <strong>enrolled gallery</strong> you build (5–10 photos per known person). No training — enrolment only. Event gains an <code>identity</code> field; dashboard shows the name on the dot + a "known person seen" notification.</li>
+      <li><span class="me">ME</span> — <strong>identity rides the body-track</strong>: the face only has to match ONCE from a good angle; that name then locks to the person's tracklet (Re-ID) and follows their dot through corridors where the face is unreadable. First good glimpse → named for their whole visit.</li>
+      <li><span class="you">YOU</span> — enrol the gallery (drop in photos), then walk past a camera; tune the match threshold on your own trials (too strict misses the client, too loose mislabels a stranger — the same fragmentation-vs-collision dial, higher stakes).</li>
+    </ol>
+    <p><strong>The honest ceiling — state this to anyone:</strong> face recognition needs ~50+ pixels of near-frontal face. It works at <em>door / eye-level cameras where people look toward the lens</em> ("is that the client at the door?" — reliable). It <em>frequently cannot fire on ceiling CCTV</em> (tiny, tilted, back-of-head). So the real promise is: labelled on the first good look, carried by body-tracking after — not "every face from every angle instantly." That's physics, not a bug, and we design around it.</p>
+  </div>
+  <div class="rows">
+    <div class="row"><span class="k">Data</span><span class="v"><b>No training</b> — enrolment gallery only (5–10 photos per known person, provided with consent). Best open face models (InsightFace) are non-commercial → prototype-flagged in provenance like everything else.</span></div>
+    <div class="row"><span class="k">Done test</span><span class="v">Enrolled person walks past a good-angle camera → correctly named within a second; label persists on their dot across cameras; stranger stays unlabelled</span></div>
+    <div class="row"><span class="k">Guardrail</span><span class="v"><b>Authorized private deployments only</b>, self-enrolled gallery of known people with consent. The public/mall configuration runs anonymous-Re-ID with faces OFF (EU AI Act line). No matching against external/scraped databases, ever — enforced in config, not just policy</span></div>
   </div>
 </div>
 
@@ -269,7 +313,9 @@
   <tbody>
     <tr><td>P1</td><td class="num">YOLOX-S detector</td><td>COCO pretrained — no training by us</td><td><span class="pill ok">Apache-2.0, clean</span></td></tr>
     <tr><td>P2–P4</td><td class="num">none</td><td>Algorithms + geometry — tuned live, never trained</td><td><span class="pill ok">MIT tools</span></td></tr>
+    <tr><td>P4A</td><td class="num">none</td><td>Floor plan learned per-site from footfall statistics — no model, no dataset of buildings</td><td><span class="pill ok">Per-site, clean</span></td></tr>
     <tr><td>P5</td><td class="num">OSNet Re-ID</td><td>Market-1501-pretrained weights</td><td><span class="pill warn">Research-only — prototype use, flagged</span></td></tr>
+    <tr><td>P5A</td><td class="num">ArcFace face</td><td>Pretrained embedder + your enrolled gallery (5–10 photos/person, consented) — no training</td><td><span class="pill warn">Non-commercial model, prototype-flagged; authorized use only</span></td></tr>
     <tr><td>P7</td><td class="num">YOLOX-S fine-tune</td><td>YOUR labeled footage (2–5k boxes), per-sequence split, provenance-tagged</td><td><span class="pill ok">Yours — shippable</span></td></tr>
     <tr><td>P8</td><td class="num">OSNet fine-tune</td><td>Tracker-harvested crops (self-bootstrap) + your pair confirmations</td><td><span class="pill ok">Yours — shippable</span></td></tr>
     <tr><td>Product</td><td class="num">both, retrained</td><td>Own + synthetic + commercially licensed only; research weights never shipped</td><td><span class="pill crit">Enforced at train launch (the mantis gap, closed)</span></td></tr>
@@ -285,14 +331,16 @@
     <tr><td>P1 detections</td><td>track anything — no tracker can recover a person never detected</td></tr>
     <tr><td>P2 stable tracks</td><td>build Re-ID templates (P5) or harvest Re-ID training data (P8) — the tracklet is the atomic unit</td></tr>
     <tr><td>P3 calibration</td><td>fuse anything geometrically (P4) or gate by space-time (P6) — no shared map, no physics</td></tr>
-    <tr><td>P5 appearance</td><td>bridge blind gaps (P6) — geometry can't see across them</td></tr>
+    <tr><td>P4 multi-camera tracks</td><td>learn the floor plan from footfall (P4A) — one camera's paths aren't enough to map a building</td></tr>
+    <tr><td>P5 appearance</td><td>bridge blind gaps (P6), OR carry a face-label across cameras (P5A) — geometry can't see across them</td></tr>
+    <tr><td>P5A named identity</td><td>label a dot "the client" — the anonymous tracker (P2/P6) must exist first to attach a name to</td></tr>
     <tr><td>P6 working end-to-end</td><td>know what P7/P8 training should fix — you train against measured failures, not vibes</td></tr>
   </tbody>
 </table></div>
 
 <footer>
   <span>THE EXACT BUILD ROADMAP · VOL 4 · LIVING DOC · 2026-07-03</span>
-  <span>P0–P2 SHIPPED · P3 NEXT</span>
+  <span>P0–P2 SHIPPED · P3 NEXT · P4A AUTO-CAL + P5A FACE ADDED</span>
 </footer>
 
 </div>
