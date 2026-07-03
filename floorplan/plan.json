@@ -1,60 +1,88 @@
 {
-  "version": 1,
-  "name": "demo-mall",
-  "size_m": [60, 30],
-  "coordinate_note": "metres; origin top-left; x right; y down; yaw_deg 0 = +x (east), positive clockwise",
+  "version": 2,
+  "name": "demo-house",
+  "coordinate_note": "metres; per-floor frames, origin top-left; x right; y down; yaw_deg 0 = +x (east), positive clockwise",
 
-  "walkable": [
-    { "x": 0, "y": 12, "w": 60, "h": 6, "name": "main corridor" },
-    { "x": 27, "y": 0, "w": 6, "h": 12, "name": "north corridor" },
-    { "x": 40, "y": 18, "w": 20, "h": 12, "name": "atrium" }
-  ],
-
-  "shops": [
-    { "x": 2, "y": 7, "w": 10, "h": 5, "name": "S1" },
-    { "x": 14, "y": 7, "w": 11, "h": 5, "name": "S2" },
-    { "x": 35, "y": 7, "w": 10, "h": 5, "name": "S3" },
-    { "x": 47, "y": 7, "w": 11, "h": 5, "name": "S4" },
-    { "x": 2, "y": 18, "w": 16, "h": 5, "name": "S5" },
-    { "x": 20, "y": 18, "w": 16, "h": 5, "name": "S6" },
-    { "x": 21, "y": 1, "w": 5, "h": 10, "name": "S7" },
-    { "x": 34, "y": 1, "w": 5, "h": 10, "name": "S8" }
+  "floors": [
+    {
+      "id": "ground",
+      "name": "GROUND FLOOR",
+      "size_m": [15, 10],
+      "walkable": [
+        { "x": 0.5, "y": 1.0, "w": 14.0, "h": 2.5, "name": "hall" },
+        { "x": 0.5, "y": 3.5, "w": 8.0, "h": 6.0, "name": "living room" },
+        { "x": 9.5, "y": 3.5, "w": 5.0, "h": 6.0, "name": "kitchen" },
+        { "x": 8.5, "y": 6.0, "w": 1.0, "h": 1.5, "name": "living-kitchen doorway" }
+      ],
+      "rooms": [
+        { "x": 0.5, "y": 3.5, "w": 8.0, "h": 6.0, "name": "LIVING" },
+        { "x": 9.5, "y": 3.5, "w": 5.0, "h": 6.0, "name": "KITCHEN" },
+        { "x": 12.4, "y": 1.0, "w": 2.1, "h": 2.5, "name": "STAIRS" }
+      ],
+      "stairs": [ { "x": 12.4, "y": 1.0, "w": 2.1, "h": 2.5, "to": "upper" } ]
+    },
+    {
+      "id": "upper",
+      "name": "UPPER FLOOR",
+      "size_m": [15, 10],
+      "walkable": [
+        { "x": 2.0, "y": 1.0, "w": 12.5, "h": 2.0, "name": "corridor+landing" },
+        { "x": 1.0, "y": 4.0, "w": 6.0, "h": 5.0, "name": "bedroom 1" },
+        { "x": 8.0, "y": 4.0, "w": 6.0, "h": 5.0, "name": "bedroom 2" },
+        { "x": 3.5, "y": 3.0, "w": 1.0, "h": 1.0, "name": "bed1 doorway" },
+        { "x": 9.5, "y": 3.0, "w": 1.0, "h": 1.0, "name": "bed2 doorway" }
+      ],
+      "rooms": [
+        { "x": 1.0, "y": 4.0, "w": 6.0, "h": 5.0, "name": "BED 1" },
+        { "x": 8.0, "y": 4.0, "w": 6.0, "h": 5.0, "name": "BED 2" },
+        { "x": 12.4, "y": 1.0, "w": 2.1, "h": 2.5, "name": "STAIRS" }
+      ],
+      "stairs": [ { "x": 12.4, "y": 1.0, "w": 2.1, "h": 2.5, "to": "ground" } ]
+    }
   ],
 
   "waypoints": {
-    "W":  [1, 15],
-    "A":  [10, 15],
-    "B":  [20, 15],
-    "C":  [30, 15],
-    "D":  [40, 15],
-    "E":  [50, 15],
-    "F":  [59, 15],
-    "N2": [30, 10],
-    "N1": [30, 5],
-    "N0": [30, 1],
-    "G":  [46, 22],
-    "H":  [53, 26]
+    "DOOR":  { "floor": "ground", "xy": [1.0, 2.2] },
+    "HALL1": { "floor": "ground", "xy": [5.0, 2.2] },
+    "HALL2": { "floor": "ground", "xy": [10.0, 2.2] },
+    "LIV1":  { "floor": "ground", "xy": [3.5, 6.0] },
+    "LIV2":  { "floor": "ground", "xy": [6.5, 8.0] },
+    "DWY":   { "floor": "ground", "xy": [9.0, 6.8] },
+    "KIT":   { "floor": "ground", "xy": [12.0, 7.0] },
+    "BACK":  { "floor": "ground", "xy": [14.2, 7.0] },
+    "STG":   { "floor": "ground", "xy": [13.4, 2.2] },
+    "STU":   { "floor": "upper",  "xy": [13.4, 2.0] },
+    "LAND":  { "floor": "upper",  "xy": [11.5, 2.0] },
+    "COR1":  { "floor": "upper",  "xy": [7.0, 2.0] },
+    "COR2":  { "floor": "upper",  "xy": [3.0, 2.0] },
+    "D1":    { "floor": "upper",  "xy": [4.0, 3.5] },
+    "D2":    { "floor": "upper",  "xy": [10.0, 3.5] },
+    "BED1":  { "floor": "upper",  "xy": [4.0, 6.5] },
+    "BED2":  { "floor": "upper",  "xy": [11.0, 6.5] }
   },
   "edges": [
-    ["W", "A"], ["A", "B"], ["B", "C"], ["C", "D"], ["D", "E"], ["E", "F"],
-    ["C", "N2"], ["N2", "N1"], ["N1", "N0"],
-    ["D", "G"], ["E", "G"], ["G", "H"]
+    ["DOOR", "HALL1"], ["HALL1", "HALL2"], ["HALL2", "STG"],
+    ["HALL1", "LIV1"], ["LIV1", "LIV2"], ["LIV2", "DWY"], ["DWY", "KIT"],
+    ["HALL2", "KIT"], ["KIT", "BACK"],
+    { "from": "STG", "to": "STU", "kind": "stairs" },
+    ["STU", "LAND"], ["LAND", "COR1"], ["COR1", "COR2"],
+    ["COR2", "D1"], ["D1", "BED1"], ["COR1", "D2"], ["D2", "BED2"]
   ],
-  "entrances": ["W", "F", "N0"],
-  "dwell_points": ["B", "G", "H", "N1"],
+  "entrances": ["DOOR", "BACK"],
+  "dwell_points": ["LIV2", "KIT", "BED1", "BED2"],
 
   "cameras": [
-    { "id": "cam1", "pos": [2, 13],    "yaw_deg": 15,  "fov_deg": 70, "range_m": 12 },
-    { "id": "cam2", "pos": [14, 17],   "yaw_deg": -15, "fov_deg": 70, "range_m": 12 },
-    { "id": "cam3", "pos": [31.5, 11], "yaw_deg": -90, "fov_deg": 70, "range_m": 6 },
-    { "id": "cam4", "pos": [29, 0.5],  "yaw_deg": 90,  "fov_deg": 70, "range_m": 3 },
-    { "id": "cam5", "pos": [41, 13],   "yaw_deg": 20,  "fov_deg": 70, "range_m": 12 },
-    { "id": "cam6", "pos": [59, 17],   "yaw_deg": 160, "fov_deg": 70, "range_m": 13 }
+    { "id": "cam1", "floor": "ground", "pos": [0.8, 1.4],  "yaw_deg": 10,   "fov_deg": 90, "range_m": 10 },
+    { "id": "cam2", "floor": "ground", "pos": [0.9, 9.1],  "yaw_deg": -35,  "fov_deg": 90, "range_m": 8 },
+    { "id": "cam3", "floor": "ground", "pos": [14.2, 4.0], "yaw_deg": 130,  "fov_deg": 80, "range_m": 6.5 },
+    { "id": "cam4", "floor": "upper",  "pos": [14.3, 1.2], "yaw_deg": 170,  "fov_deg": 80, "range_m": 5 },
+    { "id": "cam5", "floor": "upper",  "pos": [2.2, 1.2],  "yaw_deg": 12,   "fov_deg": 70, "range_m": 8.5 },
+    { "id": "cam6", "floor": "upper",  "pos": [13.8, 9.0], "yaw_deg": -140, "fov_deg": 80, "range_m": 7.5 }
   ],
 
   "notes": {
-    "overlap_zone": "cam5+cam6 both cover main corridor x≈46–53 — geometric fusion test bed (M5)",
-    "blind_gap": "north corridor y≈3.5–5 between cam4 and cam3 — cross-camera handoff test bed (M6)",
-    "junction_blind": "main corridor x≈26–41 around the junction is largely uncovered — deliberate"
+    "cross_floor_handoff": "stairs STG↔STU: person exits cam1's hall view, reappears in cam4's landing view ~3–8 s later — the M6 cross-camera (and cross-floor) test bed",
+    "overlap_zone": "cam4+cam5 both cover corridor/landing x≈9.2–10.7 on upper — geometric fusion test bed (M5)",
+    "blind_room": "bedroom 1 has no camera; living-kitchen doorway route (LIV2→DWY→KIT) is also partly blind — deliberate"
   }
 }

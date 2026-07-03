@@ -11,9 +11,11 @@ Invariants consumers may rely on (change requires a version bump):
      across ticks. Streams are joined by time, never by arrival order.
   2. ``(camera, track_id)`` identifies one per-camera tracklet. Track ids are
      stable while a person stays in view and are NEVER reused within a run.
-  3. ``floor_xy`` is metres on the shared floor plan (origin top-left,
-     x right, y down). Absent calibration/projection it is ``None`` — but the
-     observation is still emitted (boxes survive without geometry).
+  3. ``floor_xy`` is metres in the frame of the floor the OBSERVING CAMERA
+     is mounted on (origin top-left, x right, y down); the floor itself is
+     derived from ``camera`` via the plan — cameras never see other floors.
+     Absent calibration/projection it is ``None`` — but the observation is
+     still emitted (boxes survive without geometry).
   4. ``global_id`` is GROUND TRUTH from the simulator, present only for
      debugging/eval overlays. Real pipelines omit it until the cross-camera
      engine (M6) assigns one. Dashboards must render correctly without it.

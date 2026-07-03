@@ -5,9 +5,17 @@ first, bump versions, then change code (the mantis manifest discipline).
 
 ## Coordinate system
 
-Metres. Origin top-left of the floor plan, x right, y down.
+Metres. Per-floor frames: origin top-left of each floor, x right, y down.
 `yaw_deg`: 0 = +x (east), positive clockwise (so +90 faces +y / south).
-Floor plan definition: [`floorplan/plan.json`](floorplan/plan.json) (schema v1).
+Floor plan definition: [`floorplan/plan.json`](floorplan/plan.json), schema v2:
+
+- `floors[]` — each with `id`, `name`, `size_m`, `walkable[]` rects,
+  `rooms[]` (visual), `stairs[]` footprint rects (with `to` floor id).
+- `waypoints` — `{name: {floor, xy}}`. `edges` — plain `[a, b]` pairs or
+  `{from, to, kind: "stairs"}` for cross-floor connections.
+- `cameras[]` — each carries a `floor` id. **A camera only ever observes
+  people on its own floor.** The event schema does not carry a floor field:
+  consumers derive an observation's floor from its `camera` via the plan.
 
 ## Event stream
 
@@ -37,6 +45,12 @@ Rules:
 - People walk the waypoint graph between entrances at 1.0–1.6 m/s with jitter,
   sometimes dwelling at `dwell_points`. Spawn/despawn at `entrances`, holding
   the population near `n_people_target`.
+- Multi-floor: every walker is on exactly one floor at any instant (the floor
+  of the edge endpoint they are nearest along a stairs edge; floor flips at
+  the edge midpoint). On `kind: "stairs"` edges speed drops to ~0.6 m/s and
+  heading jitter is suppressed. Walkable-containment checks use the walker's
+  current floor's rects. A camera observes a walker only when
+  `walker.floor == camera.floor` (plus range/FOV as before).
 - A camera observes a person when within `range_m` AND within `fov_deg/2` of
   its yaw. Per observation: gaussian position noise (σ≈0.15 m), dropout
   (~5% of samples silently missed), `conf = clamp(0.9 − 0.3·dist/range ± noise)`.
@@ -65,8 +79,15 @@ def main() -> None: ...   # console script `mtmc-server`; uvicorn on :8100
 Static, no build step, no external network (works offline).
 `index.html` + `app.js` + `style.css`, plain ES6, canvas 2D rendering.
 
-- Fetch `/api/plan`, render floor plan: walkable areas, shops, waypoint graph
-  (subtle), cameras as wedge-shaped view cones (translucent).
+- Fetch `/api/plan`, render EVERY floor as its own panel (side by side when
+  wide, stacked when narrow), each labeled with the floor `name`, each with
+  its own to-scale transform: walkable areas, rooms, stairs footprints
+  (distinct hatch/label), waypoint graph (subtle), cameras as wedge-shaped
+  view cones (translucent). Observations render on the panel of their
+  camera's floor (derive via plan).
+- Ground-truth mode: a person's path renders per floor; when the true path
+  crosses floors, draw a short dashed connector from the stair footprint on
+  one panel to the stair footprint on the other (visual handoff cue).
 - Connect to `ws://<host>/ws`, consume tick frames.
 - Dots keyed by `(camera, track_id)` — a MARKER POOL: move existing dots,
   never recreate; drop a dot if its tracklet is unseen for 3 s. Dot color =
